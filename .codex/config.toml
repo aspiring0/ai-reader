@@ -1,0 +1,5 @@
+# AI Radar project-level Codex configuration
+# This file can be customized per-project without affecting global Codex settings
+
+model = "glm-5.2"
+model_reasoning_effort = "high"

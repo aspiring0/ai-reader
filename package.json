@@ -1,0 +1,24 @@
+{
+  "name": "ai-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm.cmd run dev --workspace server",
+    "dev:web": "npm.cmd run dev --workspace web",
+    "dev": "npm.cmd run dev:server & npm.cmd run dev:web",
+    "build": "npm.cmd run build --workspace server && npm.cmd run build --workspace web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
