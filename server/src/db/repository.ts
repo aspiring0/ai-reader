@@ -128,6 +128,58 @@ export function getItemCount(): number {
   return row.c;
 }
 
+/** Delete an item by id. */
+export function deleteItem(id: string): void {
+  const db = openDb();
+  db.prepare('DELETE FROM items WHERE id = ?').run(id);
+}
+
+/** Partially update an item's editable fields. */
+export function updateItemFields(
+  id: string,
+  fields: Partial<Pick<Item, 'title' | 'title_zh' | 'summary' | 'score' | 'status' | 'item_type' | 'lang' | 'url' | 'is_favorited' | 'is_read'>>
+): void {
+  const db = openDb();
+  const sets: string[] = [];
+  const vals: (string | number)[] = [];
+  const allowed: Record<string, string> = {
+    title: 'title', title_zh: 'title_zh', summary: 'summary', score: 'score',
+    status: 'status', item_type: 'item_type', lang: 'lang', url: 'url',
+    is_favorited: 'is_favorited', is_read: 'is_read',
+  };
+  for (const [k, v] of Object.entries(fields)) {
+    if (allowed[k]) { sets.push(`${allowed[k]} = ?`); vals.push(v as string | number); }
+  }
+  if (sets.length === 0) return;
+  sets.push("updated_at = '" + new Date().toISOString() + "'");
+  vals.push(id);
+  db.prepare(`UPDATE items SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+}
+
+/** Create a manual item. Caller must provide a valid Item object. */
+export function createManualItem(item: Item): void {
+  upsertItem(item);
+}
+
+/** Count items by status for admin dashboard. */
+export function getItemCounts(): { total: number; scored: number; hidden: number; favorited: number } {
+  const db = openDb();
+  const total = (db.prepare('SELECT COUNT(*) as c FROM items').get() as { c: number }).c;
+  const scored = (db.prepare("SELECT COUNT(*) as c FROM items WHERE status='scored'").get() as { c: number }).c;
+  const hidden = (db.prepare("SELECT COUNT(*) as c FROM items WHERE status='hidden'").get() as { c: number }).c;
+  const favorited = (db.prepare('SELECT COUNT(*) as c FROM items WHERE is_favorited=1').get() as { c: number }).c;
+  return { total, scored, hidden, favorited };
+}
+
+/** Get all items for admin table (including hidden). */
+export function queryAllItems(limit = 200, offset = 0): { items: Item[]; total: number } {
+  const db = openDb();
+  const total = (db.prepare('SELECT COUNT(*) as c FROM items').get() as { c: number }).c;
+  const rows = db.prepare('SELECT * FROM items ORDER BY updated_at DESC LIMIT ? OFFSET ?')
+    .all(limit, offset) as unknown as ItemRow[];
+  return { items: rows.map(rowToItem), total };
+}
+
 /** Get all items for rescoring (minimal fields needed by the scorer). */
 export function getAllItemsForScoring(): Array<{
   id: string;

@@ -10,6 +10,7 @@ import { settingsRoutes } from './routes/settings.js';
 import { healthRoutes } from './routes/health.js';
 import { collectRoutes } from './routes/collect.js';
 import { logsRoutes } from './routes/logs.js';
+import { adminRoutes } from './routes/admin.js';
 import { logger } from './lib/logger.js';
 import { getSettings } from './lib/config.js';
 import { setCollectFn, start, setIntervalMs } from './lib/scheduler.js';
@@ -51,6 +52,7 @@ async function bootstrap(): Promise<void> {
   await app.register(healthRoutes);
   await app.register(collectRoutes);
   await app.register(logsRoutes);
+  await app.register(adminRoutes);
 
   const collectors = [
     new GitHubCollector(),

@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #16161e;
+  color: #c8d3f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #16161e; }
+::-webkit-scrollbar-thumb { background: #3a3d52; border-radius: 3px; }

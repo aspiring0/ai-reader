@@ -1,4 +1,4 @@
-﻿# AI Radar - Progress Tracker
+# AI Radar - Progress Tracker
 
 ## SP1a: Backend (DB + Collectors + Scorer + API + Scheduler + Logger)
 

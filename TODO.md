@@ -1,4 +1,4 @@
-﻿# SP1a Task List
+# SP1a Task List
 
 Each task follows TDD: write failing test -> confirm red -> implement -> confirm green -> commit.
 Every commit must pass `tsc --noEmit` and `vitest run`.
@@ -77,6 +77,20 @@ Every commit must pass `tsc --noEmit` and `vitest run`.
 - [ ] T7.2: Update PROGRESS.md to 100%
 - [ ] T7.3: Update CHANGELOG.md
 - [x] **Commit: `chore: sp1a complete`**
+
+## SP1b: Frontend [DONE]
+
+- [x] F0.1: React + Vite + Tailwind + TanStack Query + Lucide scaffold (web/ workspace)
+- [x] F0.2: API client (web/src/api/client.ts) with all endpoints + admin namespace
+- [x] F1.1: FeedPage with card layout, source/type filters, sort, search
+- [x] F1.2: ItemModal with SVG radar chart + score breakdown bars + GitHub link
+- [x] F1.3: Favorites toggle + dedicated fav view (mode='fav')
+- [x] F2.1: SettingsPage with scoring weight controls
+- [x] F3.1: SystemPage with logs + sync state viewer
+- [x] F4.1: AdminPage - stats dashboard + item table (edit/delete) + create modal
+- [x] F4.2: Admin API routes (GET /api/admin/stats, GET /api/admin/items, POST/PUT/DELETE)
+- [x] F4.3: Repository functions (deleteItem, updateItemFields, getItemCounts, queryAllItems)
+- [x] **Acceptance: web build succeeds, admin CRUD verified end-to-end, typecheck clean**
 
 ## SP1a Acceptance Criteria
 

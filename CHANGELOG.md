@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Design documentation: SP1a design spec, 5 ADRs, API reference, deployment guide, dev guide
 - `.gitignore` for data/, node_modules/, .env
 
+
+### SP1b - Frontend (React + Admin Management)
+
+#### Added
+- React 18 + Vite + Tailwind + TanStack Query frontend (web/ workspace)
+- FeedPage: card layout with score badges, source/type filters, sort, search, GitHub links
+- ItemModal: detail view with SVG radar chart, score breakdown bars, install commands
+- Favorites: toggle + dedicated collection view (mode='fav')
+- SettingsPage: scoring weight adjustment + rescore trigger
+- SystemPage: structured log viewer + sync state display
+- AdminPage: stats dashboard, item table with inline edit/delete, manual item creation modal
+- Admin API: GET /api/admin/stats, GET /api/admin/items, POST/PUT/DELETE /api/admin/items/:id
+- Repository: deleteItem, updateItemFields, getItemCounts, queryAllItems, createManualItem
+
 ## [0.1.0] - 2026-07-15
 
 ### SP1a - Backend (DB + Collectors + Scorer + API + Scheduler + Logger)
