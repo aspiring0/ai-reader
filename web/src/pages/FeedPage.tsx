@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { Item } from '@shared/types';
@@ -57,7 +57,7 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const qc = useQueryClient();
 
   const feedParams = {
-    source: tab === 'skill' ? (sourceFilter === 'all' ? undefined : sourceFilter) : tab === 'news' ? (sourceFilter === 'all' ? undefined : sourceFilter) : undefined,
+    source: sourceFilter === 'all' ? undefined : sourceFilter,
     type: tab === 'skill' && typeFilter !== 'all' ? typeFilter : undefined,
     sort,
     q: search || undefined,
