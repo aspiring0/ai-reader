@@ -1,4 +1,7 @@
-﻿const DOMAIN_WHITELIST = new Set([
+﻿import { CollectError } from './errors.js';
+import { logger } from './logger.js';
+
+const DOMAIN_WHITELIST = new Set([
   'api.github.com',
   'hn.algolia.com',
   'www.jiqizhixin.com',
@@ -7,7 +10,7 @@
   'open.bigmodel.cn',
 ]);
 
-/** Check if a URL's domain is in the whitelist. */
+/** Check if a URL's domain is in the whitelist (SSRF protection). */
 export function isAllowedDomain(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -17,18 +20,33 @@ export function isAllowedDomain(url: string): boolean {
   }
 }
 
+/** Add a domain to the whitelist (for user-configured RSS feeds). */
+export function addAllowedDomain(domain: string): void {
+  DOMAIN_WHITELIST.add(domain);
+}
+
 interface FetchOptions {
   headers?: Record<string, string>;
   retries?: number;
   timeoutMs?: number;
+  source?: string; // For error attribution (e.g. 'github', 'hackernews')
 }
 
-/** Fetch with retry and exponential backoff. */
+/**
+ * Fetch with retry, exponential backoff, domain whitelist, and timeout.
+ * Throws CollectError on failure with proper categorization.
+ */
 export async function fetchWithRetry(
   url: string,
   options: FetchOptions = {}
 ): Promise<Response> {
-  const { retries = 3, timeoutMs = 15000, headers } = options;
+  const { retries = 3, timeoutMs = 15000, headers, source = 'unknown' } = options;
+
+  if (!isAllowedDomain(url)) {
+    throw new CollectError(source, 'auth', `Blocked by domain whitelist: ${url}`);
+  }
+
+  let lastError: CollectError | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -46,20 +64,34 @@ export async function fetchWithRetry(
       if (resp.status === 429 || resp.status >= 500) {
         if (attempt < retries) {
           const backoff = Math.pow(2, attempt) * 1000;
+          logger.warn('collect', source, `HTTP ${resp.status}, retrying in ${backoff}ms (attempt ${attempt + 1}/${retries + 1})`);
           await new Promise((r) => setTimeout(r, backoff));
           continue;
         }
+        lastError = CollectError.fromHttpStatus(source, resp.status, url);
+        throw lastError;
       }
 
       return resp;
     } catch (err) {
-      if (attempt === retries) throw err;
-      const backoff = Math.pow(2, attempt) * 1000;
-      await new Promise((r) => setTimeout(r, backoff));
+      // CollectError from HTTP status above — rethrow
+      if (err instanceof CollectError && err.category !== 'network') {
+        throw err;
+      }
+
+      // Network error or abort — retry
+      lastError = CollectError.fromNetworkError(source, err);
+      if (attempt < retries) {
+        const backoff = Math.pow(2, attempt) * 1000;
+        logger.warn('collect', source, `Network error, retrying in ${backoff}ms: ${lastError.message}`);
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      throw lastError;
     }
   }
 
-  throw new Error(`Failed after ${retries + 1} attempts: ${url}`);
+  throw lastError ?? new CollectError(source, 'unknown', `Failed after ${retries + 1} attempts: ${url}`);
 }
 
 /** Rate limiter for sequential API calls. */
@@ -76,7 +108,3 @@ export class RateLimiter {
   }
 }
 
-/** Add a domain to the whitelist (for user-configured RSS feeds). */
-export function addAllowedDomain(domain: string): void {
-  DOMAIN_WHITELIST.add(domain);
-}

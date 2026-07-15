@@ -1,7 +1,8 @@
 ﻿import type { RawItem, Collector } from './types.js';
 import { getSetting } from '../db/repository.js';
+import { fetchWithRetry, addAllowedDomain } from '../lib/http.js';
+import { logger } from '../lib/logger.js';
 
-// Default Chinese AI RSS sources
 const DEFAULT_FEEDS: Record<string, string> = {
   'jiqizhixin': 'https://www.jiqizhixin.com/rss',
   '36kr-ai': 'https://36kr.com/feed-newsflashes',
@@ -18,26 +19,42 @@ interface RSSItem {
   creator?: string;
 }
 
-/** RSS collector for Chinese AI news sources. */
 export class RSSCollector implements Collector {
   readonly name = 'rss';
 
   async fetch(): Promise<RawItem[]> {
     const feedsRaw = getSetting('rss_feeds');
-    const feeds = feedsRaw ? JSON.parse(feedsRaw) as Record<string, string> : DEFAULT_FEEDS;
+    let feeds: Record<string, string>;
+    try {
+      feeds = feedsRaw ? JSON.parse(feedsRaw) : DEFAULT_FEEDS;
+    } catch {
+      logger.warn('collect', this.name, 'Invalid rss_feeds setting, using defaults');
+      feeds = DEFAULT_FEEDS;
+    }
 
     const results: RawItem[] = [];
 
     for (const [sourceLabel, feedUrl] of Object.entries(feeds)) {
+      // Register user-configured domains in the whitelist
       try {
-        const resp = await fetch(feedUrl, {
-          headers: { 'User-Agent': 'ai-radar' },
-          signal: AbortSignal.timeout(10000),
-        });
-        if (!resp.ok) continue;
-        const xml = await resp.text();
+        const hostname = new URL(feedUrl).hostname;
+        addAllowedDomain(hostname);
+      } catch {
+        logger.warn('collect', this.name, `Invalid feed URL for ${sourceLabel}: ${feedUrl}`);
+        continue;
+      }
 
-        // Parse RSS XML (lightweight parser - avoids rss-parser dependency at runtime for ESM compat)
+      try {
+        const resp = await fetchWithRetry(feedUrl, {
+          source: this.name,
+          timeoutMs: 10000,
+          headers: { 'User-Agent': 'ai-radar' },
+        });
+        if (!resp.ok) {
+          logger.warn('collect', this.name, `HTTP ${resp.status} for ${sourceLabel}`);
+          continue;
+        }
+        const xml = await resp.text();
         const items = this.parseRSS(xml);
         for (const item of items) {
           if (!item.link || !item.title) continue;
@@ -57,17 +74,16 @@ export class RSSCollector implements Collector {
           });
         }
       } catch (err) {
-        console.error(`[rss] error fetching ${sourceLabel}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error('collect', this.name, `Error fetching ${sourceLabel}: ${msg}`);
       }
     }
 
     return results;
   }
 
-  /** Minimal RSS XML parser. */
   private parseRSS(xml: string): RSSItem[] {
     const items: RSSItem[] = [];
-    // Match <item>...</item> blocks
     const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
     let match: RegExpExecArray | null;
 
@@ -109,4 +125,3 @@ export class RSSCollector implements Collector {
     return s.replace(/<[^>]+>/g, '').trim();
   }
 }
-

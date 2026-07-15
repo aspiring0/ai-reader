@@ -11,8 +11,7 @@
   "dependencies": {
     "fastify": "^5.2.0",
     "@fastify/swagger": "^9.4.0",
-    "@fastify/swagger-ui": "^5.2.0",
-    "rss-parser": "^3.13.0"
+    "@fastify/swagger-ui": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

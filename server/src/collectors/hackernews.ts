@@ -1,4 +1,6 @@
 ﻿import type { RawItem, Collector } from './types.js';
+import { fetchWithRetry } from '../lib/http.js';
+import { logger } from '../lib/logger.js';
 
 const HN_API = 'https://hn.algolia.com/api/v1/search';
 
@@ -11,7 +13,6 @@ interface HNHit {
   author?: string;
   created_at: string;
   num_comments?: number;
-  _tags?: string[];
 }
 
 interface HNResponse {
@@ -21,7 +22,6 @@ interface HNResponse {
 
 const AI_KEYWORDS = ['ai', 'llm', 'gpt', 'agent', 'machine learning', 'deep learning', 'neural', 'transformer', 'rag', 'mcp'];
 
-/** Hacker News Algolia collector. Searches AI-related stories. */
 export class HackerNewsCollector implements Collector {
   readonly name = 'hackernews';
 
@@ -37,15 +37,19 @@ export class HackerNewsCollector implements Collector {
       });
       const url = `${HN_API}?${params}`;
       try {
-        const resp = await fetch(url);
-        if (!resp.ok) continue;
+        const resp = await fetchWithRetry(url, { source: this.name, timeoutMs: 10000 });
+        if (!resp.ok) {
+          logger.warn('collect', this.name, `HTTP ${resp.status} for keyword ${keyword}`);
+          continue;
+        }
         const data = (await resp.json()) as HNResponse;
         for (const hit of data.hits) {
           if (!hit.title || !hit.url) continue;
           results.push(this.mapHit(hit));
         }
       } catch (err) {
-        console.error(`[hackernews] error fetching keyword ${keyword}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error('collect', this.name, `Error fetching keyword ${keyword}: ${msg}`);
       }
     }
 
@@ -53,11 +57,9 @@ export class HackerNewsCollector implements Collector {
   }
 
   private mapHit(hit: HNHit): RawItem {
-    // Strip HTML from story_text for summary
     const summary = hit.story_text
       ? hit.story_text.replace(/<[^>]+>/g, '').slice(0, 300)
       : null;
-
     return {
       source_type: 'hackernews',
       source_id: hit.objectID,
