@@ -128,6 +128,44 @@ export function getItemCount(): number {
   return row.c;
 }
 
+/** Get all items for rescoring (minimal fields needed by the scorer). */
+export function getAllItemsForScoring(): Array<{
+  id: string;
+  stars: number;
+  stars_prev: number | null;
+  forks: number;
+  pushed_at: string | null;
+  collected_at: string | null;
+  raw_data: string | null;
+}> {
+  const db = openDb();
+  return db.prepare(
+    'SELECT id, stars, stars_prev, forks, pushed_at, collected_at, raw_data FROM items'
+  ).all() as Array<{
+    id: string;
+    stars: number;
+    stars_prev: number | null;
+    forks: number;
+    pushed_at: string | null;
+    collected_at: string | null;
+    raw_data: string | null;
+  }>;
+}
+
+/** Update an item's score, score_detail, and status (used by rescore). */
+export function updateItemScore(
+  id: string,
+  score: number,
+  scoreDetail: ScoreDetail,
+  status: string,
+): void {
+  const db = openDb();
+  const now = new Date().toISOString();
+  db.prepare(
+    'UPDATE items SET score = ?, score_detail = ?, status = ?, updated_at = ? WHERE id = ?'
+  ).run(score, JSON.stringify(scoreDetail), status, now, id);
+}
+
 // ── Settings ───────────────────────────────────────────
 
 export function getSetting(key: string): string {

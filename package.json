@@ -15,7 +15,7 @@
     "build": "npm.cmd run build --workspace server && npm.cmd run build --workspace web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p server/tsconfig.json"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

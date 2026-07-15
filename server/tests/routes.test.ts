@@ -146,6 +146,38 @@ describe('API Routes', () => {
       // Token should be masked in response
       expect(body.data.github_token).toBe('***');
     });
+
+    it('should rescore items when score_weights change', async () => {
+      // Item A: high stars, old push (low activity)
+      upsertItem(makeItem({
+        id: 'high-stars', source_id: 'a/repo',
+        title: 'High Stars', stars: 10000, forks: 500,
+        pushed_at: '2024-01-01T00:00:00Z',
+      }));
+      // Item B: low stars, recent push (high activity)
+      upsertItem(makeItem({
+        id: 'low-stars', source_id: 'b/repo',
+        title: 'Low Stars', stars: 10, forks: 1,
+        pushed_at: new Date().toISOString(),
+      }));
+
+      // Weights favoring star_velocity -> high-stars should rank first
+      await app.inject({
+        method: 'PUT', url: '/api/settings',
+        payload: { score_weights: { star_velocity: 1, activity: 0, fork_ratio: 0, author_reputation: 0, issue_health: 0 } },
+      });
+      let feed = (await app.inject({ method: 'GET', url: '/api/feed?limit=2' })).json();
+      expect(feed.data.items[0].title).toBe('High Stars');
+
+      // Weights favoring activity -> low-stars should rank first
+      await app.inject({
+        method: 'PUT', url: '/api/settings',
+        payload: { score_weights: { star_velocity: 0, activity: 1, fork_ratio: 0, author_reputation: 0, issue_health: 0 } },
+      });
+      feed = (await app.inject({ method: 'GET', url: '/api/feed?limit=2' })).json();
+      expect(feed.data.items[0].title).toBe('Low Stars');
+    });
+
   });
 
   describe('GET /api/logs', () => {
