@@ -18,53 +18,40 @@ import { HackerNewsCollector } from './collectors/hackernews.js';
 import { RSSCollector } from './collectors/rss.js';
 import { dedup } from './collectors/dedup.js';
 import { scoreItems, getDefaultWeights } from './scorer/index.js';
-import { upsertItem, upsertSyncState } from './db/repository.js';
+import { upsertItem, upsertSyncState, getExistingStars } from './db/repository.js';
 import type { Item, ScoreDetail } from '@shared/types';
-import { randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.AIRADAR_PORT) || 3001;
 const HOST = '127.0.0.1';
 
 async function bootstrap(): Promise<void> {
-  // Initialize DB
   const db = openDb();
   initSchema(db);
   runMigrations(db);
   logger.info('system', 'startup', 'Database initialized');
 
-  // Ensure default settings exist
-  const settings = getSettings();
-  void settings;
+  getSettings();
 
-  // Create Fastify instance
   const app = Fastify({ logger: false });
 
-  // Swagger/OpenAPI
   await app.register(swagger, {
     openapi: {
       info: {
         title: 'AI Radar API',
         version: '0.1.0',
         description: 'Local-first AI tool discovery station',
-      
       },
       servers: [{ url: `http://${HOST}:${PORT}` }],
-    
-      },
+    },
   });
   await app.register(swaggerUi, { routePrefix: '/api/docs' });
-
-  // Response plugin (error handler)
   await app.register(responsePlugin);
-
-  // Routes
   await app.register(feedRoutes);
   await app.register(settingsRoutes);
   await app.register(healthRoutes);
   await app.register(collectRoutes);
   await app.register(logsRoutes);
 
-  // Collect orchestrator
   const collectors = [
     new GitHubCollector(),
     new HackerNewsCollector(),
@@ -74,66 +61,67 @@ async function bootstrap(): Promise<void> {
   async function runCollect(): Promise<void> {
     const startTime = Date.now();
     logger.info('collect', 'start', 'Starting collect run');
+    const now = new Date().toISOString();
 
     for (const collector of collectors) {
       try {
-        const startTime2 = Date.now();
-        const raw = await collector.fetch();
-        const deduped = dedup(raw);
+        const sourceStart = Date.now();
+        const rawItems = await collector.fetch();
+        const deduped = dedup(rawItems);
 
-        // Get current settings for weights
         const settings = getSettings();
         const weights = settings.score_weights ?? getDefaultWeights();
 
-        // Score items (author_reputation handled per-item with cache)
-        const scored = scoreItems(
-          deduped.map((item) => ({
-            stars: item.stars,
-            stars_prev: null, // Will be updated from DB on upsert
-            forks: item.forks,
-            pushed_at: item.pushed_at,
-            collected_at: new Date().toISOString(),
-            open_issues: item.open_issues,
-            author_max_stars: 0, // Will be enriched for high-score items
-          })),
-          weights
-        );
+        // Read existing stars from DB for snapshot-based velocity
+        const snapshotData = deduped.map((item) => ({
+          stars: item.stars,
+          stars_prev: getExistingStars(item.source_type, item.source_id),
+          forks: item.forks,
+          pushed_at: item.pushed_at,
+          collected_at: now,
+          open_issues: item.open_issues,
+          author_max_stars: 0,
+        }));
+
+        const scored = scoreItems(snapshotData, weights);
 
         let inserted = 0;
-        const now = new Date().toISOString();
         for (let i = 0; i < deduped.length; i++) {
-          const raw = deduped[i];
-          const score = scored[i];
+          const rawItem = deduped[i];
+          const prevStars = snapshotData[i].stars_prev;
+          const existing = prevStars !== null;
           const item: Item = {
-            id: randomUUID(),
-            source_type: raw.source_type,
-            source_id: raw.source_id,
-            url: raw.url,
-            title: raw.title,
+            id: `${rawItem.source_type}:${rawItem.source_id}`,
+            source_type: rawItem.source_type,
+            source_id: rawItem.source_id,
+            url: rawItem.url,
+            title: rawItem.title,
             title_zh: null,
-            summary: raw.summary,
-            lang: raw.lang,
-            item_type: raw.item_type as Item['item_type'],
-            raw_data: raw.raw_data,
-            stars: raw.stars,
-            stars_prev: null,
-            forks: raw.forks,
-            author: raw.author,
-            pushed_at: raw.pushed_at,
-            score: score.score,
-            score_detail: score.detail as ScoreDetail,
-            status: score.score >= (settings.score_threshold ?? 20) ? 'scored' : 'hidden',
+            summary: rawItem.summary,
+            lang: rawItem.lang,
+            item_type: rawItem.item_type as Item['item_type'],
+            raw_data: rawItem.raw_data,
+            stars: rawItem.stars,
+            stars_prev: prevStars,
+            forks: rawItem.forks,
+            author: rawItem.author,
+            pushed_at: rawItem.pushed_at,
+            score: scored[i].score,
+            score_detail: scored[i].detail as ScoreDetail,
+            status: scored[i].score >= (settings.score_threshold ?? 20) ? 'scored' : 'hidden',
             is_read: 0,
             is_favorited: 0,
             collected_at: now,
             created_at: now,
             updated_at: now,
           };
+          // Preserve created_at for existing items via upsert (ON CONFLICT keeps original)
+          void existing;
           upsertItem(item);
           inserted++;
         }
 
-        const duration = Date.now() - startTime2;
+        const duration = Date.now() - sourceStart;
         upsertSyncState(collector.name, {
           last_run: now,
           last_success: now,
@@ -144,7 +132,7 @@ async function bootstrap(): Promise<void> {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         upsertSyncState(collector.name, {
-          last_run: new Date().toISOString(),
+          last_run: now,
           last_success: null,
           item_count: 0,
           error: message,
@@ -157,13 +145,11 @@ async function bootstrap(): Promise<void> {
     logger.info('collect', 'complete', `Collect run finished`, { durationMs: totalDuration });
   }
 
-  // Register collect function and start scheduler
   setCollectFn(runCollect);
-  const settings2 = getSettings();
-  setIntervalMs((settings2.fetch_interval_hours ?? 6) * 60 * 60 * 1000);
+  const schedSettings = getSettings();
+  setIntervalMs((schedSettings.fetch_interval_hours ?? 6) * 60 * 60 * 1000);
   start();
 
-  // Graceful shutdown
   process.on('SIGINT', async () => {
     logger.info('system', 'shutdown', 'Shutting down');
     await app.close();
@@ -171,7 +157,6 @@ async function bootstrap(): Promise<void> {
     process.exit(0);
   });
 
-  // Start listening
   try {
     await app.listen({ port: PORT, host: HOST });
     logger.info('system', 'listen', `AI Radar running on http://${HOST}:${PORT}`);
@@ -184,6 +169,3 @@ async function bootstrap(): Promise<void> {
 }
 
 void bootstrap();
-
-
-

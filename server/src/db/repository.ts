@@ -55,6 +55,22 @@ export function getItemById(id: string): Item | null {
   return row ? rowToItem(row) : null;
 }
 
+/** Get a single item by source_type + source_id. Returns null if not found. */
+export function getItemBySource(sourceType: string, sourceId: string): Item | null {
+  const db = openDb();
+  const row = db.prepare('SELECT * FROM items WHERE source_type = ? AND source_id = ?')
+    .get(sourceType, sourceId) as ItemRow | undefined;
+  return row ? rowToItem(row) : null;
+}
+
+/** Get existing stars for an item (for snapshot velocity calculation). Returns null if not found. */
+export function getExistingStars(sourceType: string, sourceId: string): number | null {
+  const db = openDb();
+  const row = db.prepare('SELECT stars FROM items WHERE source_type = ? AND source_id = ?')
+    .get(sourceType, sourceId) as { stars: number } | undefined;
+  return row ? row.stars : null;
+}
+
 /** Query the feed with filtering, sorting, search, and pagination. */
 export function queryFeed(query: FeedQuery): FeedResult {
   const db = openDb();
