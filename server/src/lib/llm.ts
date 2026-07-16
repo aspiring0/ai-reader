@@ -49,34 +49,44 @@ const MAX_RETRIES = 2;
  
  /** Extract JSON object from a possibly-fenced or prose-wrapped LLM response. */
  function extractJson(raw: string): { title_zh?: string; summary?: string } | null {
-   // Strip markdown code fences
+   // Strip ALL markdown code fences (handles preamble, multiple blocks)
    let text = raw.trim();
-   if (text.startsWith('```')) {
-     text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-   }
+   text = text.replace(/```(?:json)?\s*/gi, '');
 
-   // Try direct parse
+   // Try direct parse first
    try {
      return JSON.parse(text);
-   } catch {
-     // Continue to regex extraction
-   }
- 
-   // Extract first {...} block
+   } catch { /* continue to regex */ }
+
+   // Extract outermost {...} block
    const match = text.match(/\{[\s\S]*\}/);
-   if (match) {
-     try {
-       return JSON.parse(match[0]);
-     } catch {
-       return null;
-     }
+   if (!match) return null;
+
+   // Try parsing as-is
+   try {
+     return JSON.parse(match[0]);
+   } catch { /* try fixes below */ }
+
+   // Fix: trailing commas before } or ]
+   let fixed = match[0].replace(/,\s*([}\]])/g, '$1');
+   try {
+     return JSON.parse(fixed);
+   } catch { /* last resort below */ }
+
+   // Last resort: extract fields via regex
+   const titleMatch = match[0].match(/"title_zh"\s*:\s*"([^"]*)"/);
+   const summaryMatch = match[0].match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/);
+   if (titleMatch || summaryMatch) {
+     return {
+       title_zh: titleMatch ? titleMatch[1] : undefined,
+       summary: summaryMatch ? summaryMatch[1] : undefined,
+     };
    }
    return null;
- }
- 
-/** Call Zhipu GLM to interpret a single item into Chinese title + summary. */
+}
+
 export async function interpretItem(
- item: { title: string; summary: string | null; raw_data: string | null },
+  item: { title: string; summary: string | null; raw_data: string | null },
   settings: Settings,
 ): Promise<InterpretResult> {
   const baseUrl = settings.llm_base_url.replace(/\/$/, '');

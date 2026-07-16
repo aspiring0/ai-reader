@@ -167,6 +167,7 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sort, setSort] = useState('score');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -186,6 +187,7 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
     source: sourceFilter === 'all' ? undefined : sourceFilter,
     type: tab === 'skill' && typeFilter !== 'all' ? typeFilter : undefined,
     sort,
+    sort_dir: sortDir,
     q: search || undefined,
     score_min: scoreMin > 0 ? scoreMin : undefined,
     since,
@@ -241,7 +243,8 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   React.useEffect(() => {
     setPage(1);
     setSelectedCardIndex(-1);
-  }, [tab, sourceFilter, typeFilter, effectiveSort, search, scoreMin, timeWindow]);
+ }, [tab, sourceFilter, typeFilter, effectiveSort, search, scoreMin, timeWindow]);
+  React.useEffect(() => { setPage(1); }, [sortDir]);
 
   React.useEffect(() => {
     setSelectedCardIndex(-1);
@@ -339,12 +342,17 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
             >{label}</button>
           ))}
         </div>
-        <select value={effectiveSort} onChange={e => setSort(e.target.value)}
-          className="bg-surface border border-border rounded-md px-2 py-1 text-[11px] text-fg-dim outline-none">
-          <option value="score">{'\u6309\u5206\u6570'}</option>
-          <option value="hot">{'\u6309 Star'}</option>
-          <option value="recent">{'\u6309\u65F6\u95F4'}</option>
-        </select>
+       <select value={effectiveSort} onChange={e => setSort(e.target.value)}
+         className="bg-surface border border-border rounded-md px-2 py-1 text-[11px] text-fg-dim outline-none">
+         <option value="score">{'\u6309\u5206\u6570'}</option>
+         <option value="hot">{'\u6309 Star'}</option>
+         <option value="recent">{'\u6309\u65F6\u95F4'}</option>
+       </select>
+       <button
+         onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+         className="bg-surface border border-border rounded-md px-2 py-1 text-[11px] text-fg-dim hover:text-amber outline-none font-mono"
+         title={sortDir === 'desc' ? '\u2193 \u964D\u5E8F' : '\u2191 \u5347\u5E8F'}
+       >{sortDir === 'desc' ? '\u2193' : '\u2191'}</button>
         <div className="flex items-center gap-1.5 bg-surface border border-border rounded-md px-2 py-0.5">
           <span className="font-mono text-[10px] text-muted">{'\u2265'}</span>
           <input type="range" min={0} max={100} step={5} value={scoreMin}

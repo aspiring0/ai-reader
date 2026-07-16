@@ -12,7 +12,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type FeedParams = {
   type?: string; lang?: string; source?: string; sort?: string;
-  score_min?: number; score_max?: number; since?: string; q?: string; page?: number; limit?: number;
+ score_min?: number; score_max?: number; since?: string; q?: string; page?: number; limit?: number;
+  sort_dir?: 'asc' | 'desc';
 };
 
 export const api = {

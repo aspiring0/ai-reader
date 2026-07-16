@@ -113,7 +113,7 @@ export function queryFeed(query: FeedQuery): FeedResult {
 
   const where = conditions.join(' AND ');
   const sortCol = query.sort === 'hot' ? 'stars' : query.sort === 'recent' ? 'updated_at' : 'score';
-  const sortDir = query.sort === 'recent' ? 'DESC' : 'DESC';
+  const sortDir = query.sort_dir === 'asc' ? 'ASC' : 'DESC';
   const countParams = { ...params } as Record<string, import('node:sqlite').SQLInputValue>;
   const selectParams = { ...params, limit, offset } as Record<string, import('node:sqlite').SQLInputValue>;
 

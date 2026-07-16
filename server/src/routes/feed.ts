@@ -9,25 +9,27 @@ export async function feedRoutes(app: FastifyInstance): Promise<void> {
       type?: string;
       lang?: string;
       source?: string;
-      sort?: string;
+     sort?: string;
      score_min?: string;
-      score_max?: string;
-      since?: string;
+     score_max?: string;
+     since?: string;
      q?: string;
-      page?: string;
-      limit?: string;
-    };
-  }>('/api/feed', async (req, reply) => {
-    const q: FeedQuery = {
+     page?: string;
+     limit?: string;
+     sort_dir?: string;
+   };
+ }>('/api/feed', async (req, reply) => {
+   const q: FeedQuery = {
       type: req.query.type as FeedQuery['type'],
       lang: req.query.lang,
       source: req.query.source as FeedQuery['source'],
       sort: req.query.sort as FeedQuery['sort'],
      score_min: req.query.score_min ? Number(req.query.score_min) : undefined,
       score_max: req.query.score_max ? Number(req.query.score_max) : undefined,
-      since: req.query.since,
+     since: req.query.since,
      q: req.query.q,
-      page: req.query.page ? Number(req.query.page) : 1,
+     sort_dir: req.query.sort_dir === 'asc' ? 'asc' : 'desc',
+     page: req.query.page ? Number(req.query.page) : 1,
       limit: req.query.limit ? Number(req.query.limit) : 50,
     };
     const result: FeedResult = queryFeed(q);
