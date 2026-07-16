@@ -180,6 +180,24 @@ export function getUninterpretedCount(): number {
   return row.c;
 }
 
+/** Get scored items regardless of interpretation status (for force re-interpret). */
+export function getScoredItemsForReinterpret(limit = 50): Item[] {
+  const db = openDb();
+  const rows = db.prepare(
+    "SELECT * FROM items WHERE status = 'scored' ORDER BY score DESC LIMIT ?"
+  ).all(limit) as unknown as ItemRow[];
+  return rows.map(rowToItem);
+}
+
+/** Count scored items (for re-interpret progress reporting). */
+export function getScoredCount(): number {
+  const db = openDb();
+  const row = db.prepare(
+    "SELECT COUNT(*) as c FROM items WHERE status = 'scored'"
+  ).get() as { c: number };
+  return row.c;
+}
+
 /** Count items by status for admin dashboard. */
 export function getItemCounts(): { total: number; scored: number; hidden: number; favorited: number } {
   const db = openDb();

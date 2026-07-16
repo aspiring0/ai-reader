@@ -29,6 +29,7 @@ export const api = {
   health: () => request<import('@shared/types').HealthResponse>('/health'),
   collect: () => request<{ message: string }>('/collect/run', { method: 'POST', body: '{}' }),
   interpretRun: () => request<{ total: number; succeeded: number; failed: number; errors: string[] }>('/interpret/run', { method: 'POST', body: '{}' }),
+  interpretRunForce: () => request<{ message: string; count: number }>('/interpret/run?force=true&limit=200', { method: 'POST', body: '{}' }),
   interpretItem: (id: string) => request<{ title_zh: string; summary: string }>('/interpret/' + encodeURIComponent(id), { method: 'POST', body: '{}' }),
   logs: (params?: { category?: string; level?: string; limit?: number; since?: string }) => {
     const qs = params ? '?' + new URLSearchParams(

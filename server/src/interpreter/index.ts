@@ -2,15 +2,16 @@
  import type { InterpretResult } from '../lib/llm.js';
  import { getSettings } from '../lib/config.js';
  import { logger } from '../lib/logger.js';
- import {
-   getUninterpretedItems,
-   getItemById,
-   updateItemFields,
-   upsertSyncState,
- } from '../db/repository.js';
- 
- const RATE_LIMITER_MS = 500;
- 
+import {
+  getUninterpretedItems,
+  getItemById,
+  updateItemFields,
+  upsertSyncState,
+} from '../db/repository.js';
+import { getScoredItemsForReinterpret } from '../db/repository.js';
+
+const RATE_LIMITER_MS = 500;
+
  export interface InterpretRunResult {
    total: number;
    succeeded: number;
@@ -22,17 +23,17 @@
    return new Promise((r) => setTimeout(r, ms));
  }
  
- /** Interpret up to `limit` uninterpreted scored items. */
- export async function runInterpretation(limit = 50): Promise<InterpretRunResult> {
-   const settings = getSettings();
-   const apiKey = settings.llm_api_key?.trim();
- 
-   if (!apiKey) {
-     return { total: 0, succeeded: 0, failed: 0, errors: [] };
-   }
- 
-   const items = getUninterpretedItems(limit);
-   const result: InterpretRunResult = {
+/** Interpret up to `limit` uninterpreted scored items. */
+export async function runInterpretation(limit = 50, force = false): Promise<InterpretRunResult> {
+  const settings = getSettings();
+  const apiKey = settings.llm_api_key?.trim();
+
+  if (!apiKey) {
+    return { total: 0, succeeded: 0, failed: 0, errors: [] };
+  }
+
+  const items = force ? getScoredItemsForReinterpret(limit) : getUninterpretedItems(limit);
+  const result: InterpretRunResult = {
      total: items.length,
      succeeded: 0,
      failed: 0,

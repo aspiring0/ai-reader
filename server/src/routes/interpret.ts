@@ -1,22 +1,32 @@
- import type { FastifyInstance } from 'fastify';
- import { getSettings } from '../lib/config.js';
- import { runInterpretation, interpretSingle } from '../interpreter/index.js';
- import { ok, fail } from './helpers.js';
- 
- export async function interpretRoutes(app: FastifyInstance): Promise<void> {
-   app.post<{ Querystring: { limit?: string } }>(
-     '/api/interpret/run',
-     async (req, reply) => {
-       const settings = getSettings();
-       if (!settings.llm_api_key?.trim()) {
-         return fail(reply, 'LLM_NOT_CONFIGURED', 'LLM API key not set in settings', 400);
-       }
- 
-       const limit = req.query.limit ? Math.min(200, Math.max(1, Number(req.query.limit))) : 50;
-       const result = await runInterpretation(limit);
-       return ok(reply, result);
-     },
-   );
+import type { FastifyInstance } from 'fastify';
+import { getSettings } from '../lib/config.js';
+import { runInterpretation, interpretSingle } from '../interpreter/index.js';
+import { ok, fail } from './helpers.js';
+
+export async function interpretRoutes(app: FastifyInstance): Promise<void> {
+  app.post<{ Querystring: { limit?: string; force?: string } }>(
+    '/api/interpret/run',
+    async (req, reply) => {
+      const settings = getSettings();
+      if (!settings.llm_api_key?.trim()) {
+        return fail(reply, 'LLM_NOT_CONFIGURED', 'LLM API key not set in settings', 400);
+      }
+
+      const limit = req.query.limit ? Math.min(200, Math.max(1, Number(req.query.limit))) : 50;
+      const force = req.query.force === 'true' || req.query.force === '1';
+
+      // Force re-interpret is a long operation; run it in the background.
+      if (force) {
+        runInterpretation(limit, true).catch(() => {
+          // Errors are logged per-item inside the interpreter
+        });
+        return ok(reply, { message: 'Re-interpretation started in background', count: limit });
+      }
+
+      const result = await runInterpretation(limit);
+      return ok(reply, result);
+    },
+  );
  
    app.post<{ Params: { id: string } }>(
      '/api/interpret/:id',
