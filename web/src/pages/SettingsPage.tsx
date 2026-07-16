@@ -4,11 +4,11 @@ import { api } from '../api/client';
 import type { ScoreWeights } from '@shared/types';
 
 const DIM_LABELS: Record<keyof ScoreWeights, string> = {
-  star_velocity: 'Star 增速',
-  activity: '维护活跃',
-  fork_ratio: 'Fork 比',
-  author_reputation: '作者信誉',
-  issue_health: 'Issue 健康',
+  star_velocity: 'Star \u589E\u901F',
+  activity: '\u7EF4\u62A4\u6D3B\u8DC3',
+  fork_ratio: 'Fork \u6BD4',
+  author_reputation: '\u4F5C\u8005\u4FE1\u8A89',
+  issue_health: 'Issue \u5065\u5EB7',
 };
 
 export function SettingsPage() {
@@ -32,14 +32,14 @@ export function SettingsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['feed'] }); },
   });
 
-  if (!settings) return <div className="text-center py-10 text-muted text-xs">加载中...</div>;
+  if (!settings) return <div className="text-center py-10 text-muted text-xs">{'\u52A0\u8F7D\u4E2D'}...</div>;
 
   const weightSum = currentWeights ? Object.values(currentWeights).reduce((a, b) => a + b, 0) : 0;
 
   return (
     <div className="p-4 max-w-xl flex flex-col gap-5">
       <div>
-        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">打分权重</div>
+        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">{'\u6253\u5206\u6743\u91CD'}</div>
         <div className="flex flex-col gap-3">
           {currentWeights && Object.entries(currentWeights).map(([key, val]) => {
             const k = key as keyof ScoreWeights;
@@ -55,32 +55,32 @@ export function SettingsPage() {
           })}
         </div>
         <div className="mt-2 text-[11px] font-mono" style={{ color: Math.abs(weightSum - 1) < 0.01 ? '#9ece6a' : '#f7768e' }}>
-          权重总和: {weightSum.toFixed(2)} {Math.abs(weightSum - 1) < 0.01 ? '' : '(建议 1.0)'}
+          {'\u6743\u91CD\u603B\u548C'}: {weightSum.toFixed(2)} {Math.abs(weightSum - 1) < 0.01 ? '' : '(\u5EFA\u8BAE 1.0)'}
         </div>
       </div>
 
       <div>
-        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">显示阈值</div>
+        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">{'\u663E\u793A\u9608\u503C'}</div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-fg-dim w-20">最低分数</span>
+          <span className="text-xs text-fg-dim w-20">{'\u6700\u4F4E\u5206\u6570'}</span>
           <input type="range" min={0} max={100} step={5} value={currentThreshold}
             onChange={e => setThreshold(Number(e.target.value))}
             className="flex-1 accent-amber" />
           <span className="font-mono text-xs text-fg-dim w-10 text-right">{currentThreshold}</span>
         </div>
-        <div className="text-[11px] text-muted mt-1">低于此分数的项目将被隐藏</div>
+        <div className="text-[11px] text-muted mt-1">{'\u4F4E\u4E8E\u6B64\u5206\u6570\u7684\u9879\u76EE\u5C06\u88AB\u9690\u85CF'}</div>
       </div>
 
       <div>
-        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">抓取设置</div>
+        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">{'\u6293\u53D6\u8BBE\u7F6E'}</div>
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-xs text-fg-dim w-20">抓取间隔</span>
-          <span className="font-mono text-xs text-fg-dim">{settings.fetch_interval_hours} 小时</span>
+          <span className="text-xs text-fg-dim w-20">{'\u6293\u53D6\u95F4\u9694'}</span>
+          <span className="font-mono text-xs text-fg-dim">{settings.fetch_interval_hours} {'\u5C0F\u65F6'}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-fg-dim w-20">GitHub Token</span>
           <span className="font-mono text-xs" style={{ color: settings.github_token ? '#9ece6a' : '#f7768e' }}>
-            {settings.github_token ? '已配置' : '未配置'}
+            {settings.github_token ? '\u5DF2\u914D\u7F6E' : '\u672A\u914D\u7F6E'}
           </span>
         </div>
       </div>
@@ -134,9 +134,9 @@ export function SettingsPage() {
         }}
         disabled={saveMutation.isPending}
       >
-        {saveMutation.isPending ? '保存中...' : '保存并重新打分'}
+        {saveMutation.isPending ? '\u4FDD\u5B58\u4E2D...' : '\u4FDD\u5B58\u5E76\u91CD\u65B0\u6253\u5206'}
       </button>
-      {saveMutation.isSuccess && <div className="text-[11px] text-green">已保存并重新打分</div>}
+      {saveMutation.isSuccess && <div className="text-[11px] text-green">{'\u5DF2\u4FDD\u5B58\u5E76\u91CD\u65B0\u6253\u5206'}</div>}
     </div>
   );
 }

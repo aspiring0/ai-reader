@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { Item } from '@shared/types';
@@ -45,7 +45,11 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const [sort, setSort] = useState('score');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(12);
   const qc = useQueryClient();
+
+  // Reset pagination when filters change
+  React.useEffect(() => { setVisibleCount(12); }, [tab, sourceFilter, typeFilter, sort, search]);
 
   const feedParams = {
     source: sourceFilter === 'all' ? undefined : sourceFilter,
@@ -74,7 +78,9 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const items = data?.items ?? [];
   const favItems = items.filter(i => i.is_favorited);
 
-  const showItems = tab === 'fav' ? favItems : items;
+  const allShowItems = tab === 'fav' ? favItems : items;
+  const showItems = allShowItems.slice(0, visibleCount);
+  const hasMore = allShowItems.length > visibleCount;
 
   return (
     <div>
@@ -123,6 +129,15 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
           {showItems.map(item => (
             <Card key={item.id} item={item} onClick={() => setSelectedId(item.id)} />
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="text-center py-3">
+          <button
+            className="px-4 py-1.5 rounded-md border border-border text-xs text-fg-dim hover:border-border-lt hover:text-fg"
+            onClick={() => setVisibleCount(c => c + 12)}
+          >{'\u52A0\u8F7D\u66F4\u591A'} ({allShowItems.length - visibleCount})</button>
         </div>
       )}
 
