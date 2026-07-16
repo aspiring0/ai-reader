@@ -66,7 +66,33 @@ None.
 
 ## SP3: Install System (Safety Scan + Codex Adapter)
 
-**Status:** Not Started
+**Status:** Complete
+**Completion:** 100%
+**Started:** 2026-07-16
+**Completed:** 2026-07-16
+
+### Tasks
+
+- [x] Phase 1: Compatibility detector + safety scanner (tier A-F classification, 5-stage scan)
+- [x] Phase 2: Install engine + DB migration v3 (selective API download + git clone fallback)
+- [x] Phase 3: API routes (check, run, status, delete)
+- [x] Phase 4: Frontend integration (InstallModal, SystemPage installed skills list)
+- [x] Phase 5: Integration test + security hardening
+  - End-to-end test: discover -> check -> scan -> install -> verify -> uninstall
+  - Dangerous skill detection test (prompt injection -> red -> blocked)
+  - Fixed routing bug (item IDs with slashes now use wildcard param)
+  - Sanitized skill name from raw_data (path traversal prevention)
+  - Verified skill_path containment before filesystem delete
+
+### Verification
+
+- Tests: 160/160 passing (15 test files, 2 new integration tests)
+- TypeCheck: 0 errors (server + web)
+- Security: path traversal blocked, skill name sanitized, delete path validated
+
+### Blockers
+
+None.
 
 ## SP4: Codex Skill (ai-radar)
 
