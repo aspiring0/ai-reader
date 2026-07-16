@@ -1,7 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import type { Item } from '@shared/types';
 import { RadarChart, ScoreBars } from './RadarChart';
 import { InstallModal } from './InstallModal';
+import { RichSummary } from './RichSummary';
 import { getGithubMeta, getHNMeta, getRSSMeta } from '../lib/rawData';
 
 function scoreColor(s: number): string {
@@ -86,11 +87,11 @@ export function ItemModal({ item, onClose, onFav }: {
         {/* Body */}
         <div className="p-5 flex flex-col gap-5 max-h-[60vh] overflow-y-auto">
 
-          {/* Chinese summary (LLM interpreted) */}
+          {/* Chinese summary (LLM interpreted) - now with rich formatting */}
           {item.summary && (
             <div>
-              <SectionLabel>{'\u6458\u8981'}</SectionLabel>
-              <p className="text-[13px] text-fg-dim leading-relaxed">{item.summary}</p>
+              <SectionLabel>{'\u8BE6\u60C5'}</SectionLabel>
+              <RichSummary summary={item.summary} />
             </div>
           )}
 

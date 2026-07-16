@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 
@@ -36,6 +36,16 @@ export function InstallModal({ itemId, repoUrl, onClose }: {
     queryFn: () => api.install.check(itemId),
   });
 
+  const { data: installedList } = useQuery({
+    queryKey: ['install-status'],
+    queryFn: () => api.install.status(),
+  });
+
+  const skillName = check?.compatibility?.skillName;
+  const alreadyInstalled = installedList?.installed?.some(
+    (s) => s.item_id === itemId || (skillName && s.skill_name === skillName),
+  ) ?? false;
+
   const runMut = useMutation({
     mutationFn: () => api.install.run(itemId),
     onSuccess: () => {
@@ -43,6 +53,13 @@ export function InstallModal({ itemId, repoUrl, onClose }: {
       qc.invalidateQueries({ queryKey: ['install-status'] });
     },
     onError: () => setInstalling(false),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: (skillName: string) => api.install.remove(skillName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['install-status'] });
+    },
   });
 
   const compat = check?.compatibility;
@@ -72,6 +89,25 @@ export function InstallModal({ itemId, repoUrl, onClose }: {
             <div className="text-center py-8 text-muted text-xs">{'\u68c0\u6d4b\u4e2d'}...</div>
           ) : check ? (
             <>
+              {/* Already installed banner */}
+              {alreadyInstalled && (
+                <div className="rounded-md border border-[#9ece6a]/40 bg-[#9ece6a]/10 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[12px] text-[#9ece6a] font-semibold">{'\u2713 \u5df2\u5b89\u88c5'}</div>
+                    <p className="text-[11px] text-muted mt-0.5">{'\u8be5\u6280\u80fd\u5df2\u5728\u4f60\u7684 Codex \u4e2d\uff0c\u53ef\u91cd\u65b0\u5b89\u88c5\u6216\u5378\u8f7d\u3002'}</p>
+                  </div>
+                  {skillName && (
+                    <button
+                      className="px-3 py-1 rounded-md text-[11px] border border-[#f7768e]/40 text-[#f7768e] hover:bg-[#f7768e]/10 flex-shrink-0"
+                      disabled={removeMut.isPending}
+                      onClick={() => removeMut.mutate(skillName)}
+                    >
+                      {removeMut.isPending ? '...' : '\u5378\u8f7d'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Compatibility tier */}
               {compat && (
                 <div>
@@ -149,7 +185,9 @@ export function InstallModal({ itemId, repoUrl, onClose }: {
               disabled={installing || runMut.isPending}
               onClick={() => { setInstalling(true); runMut.mutate(); }}
             >
-              {(installing || runMut.isPending) ? '\u5b89\u88c5\u4e2d...' : '\u786e\u8ba4\u5b89\u88c5'}
+              {(installing || runMut.isPending)
+                ? '\u5b89\u88c5\u4e2d...'
+                : (alreadyInstalled ? '\u91cd\u65b0\u5b89\u88c5' : '\u786e\u8ba4\u5b89\u88c5')}
             </button>
           )}
           {repoUrl && (
