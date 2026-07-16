@@ -114,8 +114,6 @@ export interface ProviderPreset {
   id: string;
   label: string;
   base_url: string;
-  models: string[];
-  default_model: string;
   key_required: boolean;
   key_label: string;
   key_placeholder: string;

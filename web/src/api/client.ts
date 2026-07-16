@@ -66,6 +66,8 @@ export const api = {
   },
   llm: {
     providers: () => request<{ providers: import('@shared/types').ProviderPreset[] }>('/llm/providers'),
+    models: (body: { base_url?: string; api_key?: string }) =>
+      request<{ models: string[]; error?: string }>('/llm/models', { method: 'POST', body: JSON.stringify(body) }),
     test: (body: { provider?: string; model?: string; api_key?: string; base_url?: string }) =>
       request<{ success: boolean; message: string }>('/llm/test', { method: 'POST', body: JSON.stringify(body) }),
   },

@@ -6,12 +6,66 @@ import { ok } from './helpers.js';
 import { logger } from '../lib/logger.js';
 
 /**
- * POST /api/llm/test
- * Sends a 1-token ping to verify the LLM connection works.
- * Uses settings if body is empty, or the provided values for pre-save testing.
+ * Fetch available models from a provider's /models endpoint.
+ * Uses provided values if given, otherwise falls back to saved settings.
+ */
+async function fetchModels(
+  body: { base_url?: string; api_key?: string },
+): Promise<{ models: string[]; error?: string }> {
+  const settings = getSettings();
+  const baseUrl = (body.base_url || settings.llm_base_url || '').replace(/\/$/, '');
+  const apiKey = body.api_key || settings.llm_api_key || '';
+
+  if (!baseUrl) return { models: [], error: 'Base URL not configured' };
+
+  const endpoint = `${baseUrl}/models`;
+  if (!isLlmEndpoint(endpoint)) {
+    return { models: [], error: 'Endpoint must be HTTPS or localhost' };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+    const resp = await fetch(endpoint, { headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return { models: [], error: `HTTP ${resp.status}: ${text.slice(0, 200)}` };
+    }
+
+    const data = await resp.json() as {
+      data?: Array<{ id?: string }>;
+      models?: Array<{ id?: string }>;
+    };
+
+    // OpenAI-compatible APIs return { data: [{ id: "model-name" }] }
+    // Some providers use { models: [...] } instead
+    const list = data.data ?? data.models ?? [];
+    const modelIds = list
+      .map((m) => m.id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      .sort();
+
+    return { models: modelIds };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { models: [], error: 'Connection timed out (10s)' };
+    }
+    return { models: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Test LLM connection with a 1-token ping.
  */
 async function testConnection(
-  body: { provider?: string; model?: string; api_key?: string; base_url?: string },
+  body: { model?: string; api_key?: string; base_url?: string },
 ): Promise<{ success: boolean; message: string }> {
   const settings = getSettings();
   const baseUrl = (body.base_url || settings.llm_base_url || '').replace(/\/$/, '');
@@ -43,7 +97,6 @@ async function testConnection(
       }),
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
 
     if (resp.status === 401 || resp.status === 403) {
@@ -59,7 +112,6 @@ async function testConnection(
       const text = await resp.text().catch(() => '');
       return { success: false, message: `HTTP ${resp.status}: ${text.slice(0, 200)}` };
     }
-
     return { success: true, message: `Connected successfully (${model})` };
   } catch (err) {
     clearTimeout(timeoutId);
@@ -75,11 +127,21 @@ export async function llmRoutes(app: FastifyInstance): Promise<void> {
     return ok(reply, { providers: PROVIDERS });
   });
 
-  app.post<{ Body: { provider?: string; model?: string; api_key?: string; base_url?: string } }>(
+  app.post<{ Body: { base_url?: string; api_key?: string } }>(
+    '/api/llm/models',
+    async (req, reply) => {
+      const body = req.body ?? {};
+      logger.info('system', 'llm-models', `Fetching models from ${body.base_url || '(settings)'}`);
+      const result = await fetchModels(body);
+      return ok(reply, result);
+    },
+  );
+
+  app.post<{ Body: { model?: string; api_key?: string; base_url?: string } }>(
     '/api/llm/test',
     async (req, reply) => {
       const body = req.body ?? {};
-      logger.info('system', 'llm-test', `Testing connection: provider=${body.provider || '(from settings)'}`);
+      logger.info('system', 'llm-test', `Testing connection: model=${body.model || '(settings)'}`);
       const result = await testConnection(body);
       return ok(reply, result);
     },

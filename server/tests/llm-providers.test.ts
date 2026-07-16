@@ -22,7 +22,6 @@ describe('LLM Provider Presets', () => {
       expect(p.id).toBeTruthy();
       expect(p.label).toBeTruthy();
       expect(p.base_url !== undefined).toBe(true);
-      expect(Array.isArray(p.models)).toBe(true);
       expect(typeof p.key_required).toBe('boolean');
     }
   });
@@ -38,7 +37,6 @@ describe('LLM Provider Presets', () => {
   it('zhipu has the correct default', () => {
     const zhipu = PROVIDERS.find((p) => p.id === 'zhipu')!;
     expect(zhipu.base_url).toBe('https://open.bigmodel.cn/api/paas/v4');
-    expect(zhipu.default_model).toBe('glm-4-plus');
     expect(zhipu.key_required).toBe(true);
   });
 
@@ -46,6 +44,7 @@ describe('LLM Provider Presets', () => {
     const ollama = PROVIDERS.find((p) => p.id === 'ollama')!;
     expect(ollama.key_required).toBe(false);
     expect(ollama.base_url).toContain('127.0.0.1');
+    expect(ollama.docs_url).toBe('https://ollama.com/library');
   });
 });
 

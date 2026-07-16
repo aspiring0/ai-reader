@@ -22,6 +22,8 @@ export function SettingsPage() {
   const [llmModel, setLlmModel] = useState('');
   const [llmBaseUrl, setLlmBaseUrl] = useState('');
   const [llmTimeout, setLlmTimeout] = useState(30000);
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [fetchModelError, setFetchModelError] = useState('');
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const currentWeights = weights ?? settings?.score_weights ?? null;
@@ -34,13 +36,26 @@ export function SettingsPage() {
   const selectedProvider = providers.find((p) => p.id === currentProvider);
   const isCustom = currentProvider === 'custom';
 
+  // Key checkmark: only show when the saved key belongs to the current provider
+  const savedProviderMatches = (settings?.llm_provider || 'zhipu') === currentProvider;
+  const hasSavedKey = !!settings?.llm_api_key && savedProviderMatches;
+
   const saveMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.updateSettings(body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['feed'] }); },
   });
 
+  const fetchModelsMutation = useMutation({
+    mutationFn: (body: { base_url?: string; api_key?: string }) => api.llm.models(body),
+    onSuccess: (data) => {
+      if (data.error) { setFetchModelError(data.error); setFetchedModels([]); }
+      else { setFetchedModels(data.models); setFetchModelError(''); }
+    },
+    onError: (err) => { setFetchModelError(err instanceof Error ? err.message : String(err)); },
+  });
+
   const testMutation = useMutation({
-    mutationFn: (body: { provider?: string; model?: string; api_key?: string; base_url?: string }) => api.llm.test(body),
+    mutationFn: (body: { model?: string; api_key?: string; base_url?: string }) => api.llm.test(body),
     onSuccess: (data) => setTestResult(data),
     onError: (err) => setTestResult({ success: false, message: err instanceof Error ? err.message : String(err) }),
   });
@@ -48,17 +63,20 @@ export function SettingsPage() {
   function handleProviderChange(providerId: string): void {
     const preset = providers.find((p) => p.id === providerId);
     setLlmProvider(providerId);
+    // Clear key, model, and fetched models when switching providers
+    setLlmKey('');
+    setLlmModel('');
+    setFetchedModels([]);
+    setFetchModelError('');
+    setTestResult(null);
     if (preset && preset.id !== 'custom') {
-      setLlmModel(preset.default_model);
       setLlmBaseUrl(preset.base_url);
     }
-    setTestResult(null);
   }
 
   if (!settings) return <div className="text-center py-10 text-muted text-xs">{'\u52A0\u8F7D\u4E2D'}...</div>;
 
   const weightSum = currentWeights ? Object.values(currentWeights).reduce((a, b) => a + b, 0) : 0;
-
   return (
     <div className="p-4 max-w-xl flex flex-col gap-5">
       {/* Scoring weights */}
@@ -129,40 +147,20 @@ export function SettingsPage() {
             </select>
           </div>
 
-          {/* API Key (hidden for providers that don't need one) */}
+          {/* API Key */}
           {selectedProvider && selectedProvider.key_required && (
             <div className="flex items-center gap-3">
               <span className="text-xs text-fg-dim w-20">{selectedProvider.key_label}</span>
-              <input type="password" placeholder={settings?.llm_api_key ? '******' : selectedProvider.key_placeholder}
+              <input type="password"
+                placeholder={hasSavedKey ? '****** (\u5DF2\u4FDD\u5B58)' : selectedProvider.key_placeholder}
                 value={llmKey}
-                onChange={e => setLlmKey(e.target.value)}
+                onChange={e => { setLlmKey(e.target.value); setFetchedModels([]); setFetchModelError(''); }}
                 className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber" />
-              <span className="font-mono text-xs" style={{ color: settings?.llm_api_key ? '#9ece6a' : '#f7768e' }}>
-                {settings?.llm_api_key ? '\u2713' : '\u2717'}
+              <span className="font-mono text-xs" style={{ color: (llmKey || hasSavedKey) ? '#9ece6a' : '#f7768e' }}>
+                {(llmKey || hasSavedKey) ? '\u2713' : '\u2717'}
               </span>
             </div>
           )}
-
-          {/* Model dropdown (or free text for custom) */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-fg-dim w-20">{'\u6A21\u578B'}</span>
-            {isCustom ? (
-              <input type="text" placeholder="model name"
-                value={currentLlmModel}
-                onChange={e => setLlmModel(e.target.value)}
-                className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono" />
-            ) : (
-              <select
-                value={currentLlmModel}
-                onChange={e => setLlmModel(e.target.value)}
-                className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber"
-              >
-                {selectedProvider?.models.map((m: string) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            )}
-          </div>
 
           {/* Base URL */}
           <div className="flex items-center gap-3">
@@ -175,6 +173,64 @@ export function SettingsPage() {
               className={'flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono ' + (isCustom ? '' : 'opacity-60 cursor-not-allowed')} />
           </div>
 
+          {/* Model: fetch button + dropdown/manual input */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-fg-dim w-20">{'\u6A21\u578B'}</span>
+              {isCustom || fetchedModels.length > 0 ? (
+                fetchedModels.length > 0 ? (
+                  <select
+                    value={currentLlmModel}
+                    onChange={e => setLlmModel(e.target.value)}
+                    className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber"
+                  >
+                    {currentLlmModel && !fetchedModels.includes(currentLlmModel) && (
+                      <option value={currentLlmModel}>{currentLlmModel} ({'\u5DF2\u4FDD\u5B58'})</option>
+                    )}
+                    {fetchedModels.map((m: string) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                ) : isCustom ? (
+                  <input type="text" placeholder="model name"
+                    value={currentLlmModel}
+                    onChange={e => setLlmModel(e.target.value)}
+                    className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono" />
+                ) : null
+              ) : (
+                <div className="flex-1 flex items-center gap-2">
+                  {currentLlmModel && (
+                    <span className="font-mono text-xs text-fg-dim bg-surface2 px-2 py-1 rounded">{currentLlmModel}</span>
+                  )}
+                  <button
+                    className="px-3 py-1.5 rounded-md bg-surface2 text-fg text-xs font-semibold hover:bg-surface2/80 border border-border whitespace-nowrap"
+                   onClick={() => {
+                     setFetchModelError('');
+                     fetchModelsMutation.mutate({
+                       base_url: currentLlmBaseUrl,
+                       api_key: llmKey || undefined,
+                     });
+                   }}
+                    disabled={fetchModelsMutation.isPending || (!!selectedProvider?.key_required && !llmKey && !hasSavedKey)}
+                  >
+                    {fetchModelsMutation.isPending ? '\u83B7\u53D6\u4E2D...' : '\u83B7\u53D6\u6A21\u578B\u5217\u8868'}
+                  </button>
+                </div>
+              )}
+            </div>
+            {fetchModelError && (
+              <span className="font-mono text-xs text-red ml-20">{'\u2717'} {fetchModelError}</span>
+            )}
+            {fetchedModels.length > 0 && !isCustom && (
+              <button
+                className="text-[11px] text-blue hover:underline w-fit ml-20"
+                onClick={() => { setFetchedModels([]); setLlmModel(''); }}
+              >
+                {'\u91CD\u65B0\u83B7\u53D6'}
+              </button>
+            )}
+          </div>
+
           {/* Timeout */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-fg-dim w-20">{'\u8D85\u65F6(ms)'}</span>
@@ -185,12 +241,14 @@ export function SettingsPage() {
           </div>
 
           {/* Docs link */}
-          {selectedProvider && selectedProvider.docs_url && (
-            <a href={selectedProvider.docs_url} target="_blank" rel="noopener noreferrer"
-               className="text-[11px] text-blue hover:underline w-fit">
-              {'\u83B7\u53D6 API Key \u6587\u6863'} \u2197
-            </a>
-          )}
+         {selectedProvider && selectedProvider.docs_url && (
+           <a href={selectedProvider.docs_url} target="_blank" rel="noopener noreferrer"
+              className="text-[11px] text-blue hover:underline w-fit">
+              {selectedProvider.key_required
+                ? selectedProvider.label + ' \u2192 API Key'
+                : selectedProvider.label + ' \u6587\u6863'} {'\u2197'}
+           </a>
+         )}
 
           {/* Test connection */}
           <div className="flex items-center gap-3">
@@ -199,13 +257,12 @@ export function SettingsPage() {
               onClick={() => {
                 setTestResult(null);
                 testMutation.mutate({
-                  provider: currentProvider,
                   model: currentLlmModel,
                   api_key: llmKey || undefined,
                   base_url: currentLlmBaseUrl || undefined,
                 });
               }}
-              disabled={testMutation.isPending}
+              disabled={testMutation.isPending || !currentLlmModel}
             >
               {testMutation.isPending ? '\u6D4B\u8BD5\u4E2D...' : '\u6D4B\u8BD5\u8FDE\u63A5'}
             </button>
