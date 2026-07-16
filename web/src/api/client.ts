@@ -28,6 +28,8 @@ export const api = {
     request<import('@shared/types').Settings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
   health: () => request<import('@shared/types').HealthResponse>('/health'),
   collect: () => request<{ message: string }>('/collect/run', { method: 'POST', body: '{}' }),
+  interpretRun: () => request<{ total: number; succeeded: number; failed: number; errors: string[] }>('/interpret/run', { method: 'POST', body: '{}' }),
+  interpretItem: (id: string) => request<{ title_zh: string; summary: string }>('/interpret/' + encodeURIComponent(id), { method: 'POST', body: '{}' }),
   logs: (params?: { category?: string; level?: string; limit?: number; since?: string }) => {
     const qs = params ? '?' + new URLSearchParams(
       Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)])

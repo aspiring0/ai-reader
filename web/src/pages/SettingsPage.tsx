@@ -16,9 +16,16 @@ export function SettingsPage() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
   const [weights, setWeights] = useState<ScoreWeights | null>(null);
   const [threshold, setThreshold] = useState(20);
+  const [llmKey, setLlmKey] = useState('');
+  const [llmModel, setLlmModel] = useState('');
+  const [llmBaseUrl, setLlmBaseUrl] = useState('');
+  const [llmTimeout, setLlmTimeout] = useState(30000);
 
   const currentWeights = weights ?? settings?.score_weights ?? null;
   const currentThreshold = threshold ?? settings?.score_threshold ?? 20;
+  const currentLlmModel = llmModel || settings?.llm_model || 'glm-4-plus';
+  const currentLlmBaseUrl = llmBaseUrl || settings?.llm_base_url || 'https://open.bigmodel.cn/api/paas/v4';
+  const currentLlmTimeout = llmTimeout || settings?.llm_timeout_ms || 30000;
 
   const saveMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.updateSettings(body),
@@ -78,9 +85,53 @@ export function SettingsPage() {
         </div>
       </div>
 
+            <div>
+        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">LLM {'\u914D\u7F6E'}</div>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-fg-dim w-20">API Key</span>
+            <input type="password" placeholder={settings?.llm_api_key ? '******' : 'Zhipu API Key'}
+              value={llmKey}
+              onChange={e => setLlmKey(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber" />
+            <span className="font-mono text-xs" style={{ color: settings?.llm_api_key ? '#9ece6a' : '#f7768e' }}>
+              {settings?.llm_api_key ? '\u2713' : '\u2717'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-fg-dim w-20">{'\u6A21\u578B'}</span>
+            <input type="text"
+              value={currentLlmModel}
+              onChange={e => setLlmModel(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-fg-dim w-20">Base URL</span>
+            <input type="text"
+              value={currentLlmBaseUrl}
+              onChange={e => setLlmBaseUrl(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-fg-dim w-20">{'\u8D85\u65F6(ms)'}</span>
+            <input type="number" min={5000} max={120000} step={5000}
+              value={currentLlmTimeout}
+              onChange={e => setLlmTimeout(Number(e.target.value))}
+              className="flex-1 bg-surface border border-border rounded-md px-3 py-1.5 text-xs text-fg outline-none focus:border-amber font-mono" />
+          </div>
+        </div>
+      </div>
+
       <button
         className="px-4 py-2 rounded-md bg-amber text-bg text-xs font-semibold hover:bg-amber-br self-start"
-        onClick={() => saveMutation.mutate({ score_weights: currentWeights, score_threshold: currentThreshold })}
+        onClick={() => {
+          const body: Record<string, unknown> = { score_weights: currentWeights, score_threshold: currentThreshold };
+          if (llmKey) body.llm_api_key = llmKey;
+          if (llmModel) body.llm_model = currentLlmModel;
+          if (llmBaseUrl) body.llm_base_url = currentLlmBaseUrl;
+          if (llmTimeout) body.llm_timeout_ms = currentLlmTimeout;
+          saveMutation.mutate(body);
+        }}
         disabled={saveMutation.isPending}
       >
         {saveMutation.isPending ? '保存中...' : '保存并重新打分'}

@@ -11,6 +11,10 @@ export function SystemPage() {
     mutationFn: () => api.collect(),
     onSuccess: () => { qc.invalidateQueries(); },
   });
+  const interpretMut = useMutation({
+    mutationFn: () => api.interpretRun(),
+    onSuccess: () => { qc.invalidateQueries(); },
+  });
 
   return (
     <div className="p-4 max-w-2xl flex flex-col gap-5">
@@ -22,7 +26,18 @@ export function SystemPage() {
         >
           {collectMut.isPending ? '抓取中...' : '立即抓取'}
         </button>
-        {collectMut.isSuccess && <span className="text-[11px] text-green">抓取完成</span>}
+        {collectMut.isSuccess && <span className="text-[11px] text-green">{'\u62D3\u53D6\u5B8C\u6210'}</span>}
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          className="px-4 py-2 rounded-md bg-amber text-bg text-xs font-semibold hover:bg-amber-br"
+          onClick={() => interpretMut.mutate()}
+          disabled={interpretMut.isPending}
+        >
+          {interpretMut.isPending ? '...' : 'LLM'}
+        </button>
+        {interpretMut.isSuccess && <span className="text-[11px] text-green">{'\u7FFB\u8BD1\u5B8C\u6210'}</span>}
       </div>
 
       <div>
@@ -35,6 +50,10 @@ export function SystemPage() {
           <div className="bg-surface border border-border rounded-md p-2.5">
             <div className="text-[10px] text-muted">上次抓取</div>
             <div className="font-mono text-[11px] text-fg-dim mt-1.5">{health?.last_collect ?? '--'}</div>
+          </div>
+          <div className="bg-surface border border-border rounded-md p-2.5">
+            <div className="text-[10px] text-muted">{'\u5F85\u7FFB\u8BD1'}</div>
+            <div className="font-mono text-lg text-fg font-semibold">{health?.uninterpreted_count ?? '--'}</div>
           </div>
           <div className="bg-surface border border-border rounded-md p-2.5">
             <div className="text-[10px] text-muted">GitHub Token</div>

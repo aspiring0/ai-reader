@@ -26,7 +26,8 @@ export function ItemModal({ item, onClose, onFav }: {
       <div className="w-full max-w-2xl rounded-xl border border-border-lt bg-bg overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="relative p-5 border-b border-border">
           <button className="absolute right-4 top-4 text-muted hover:text-fg text-xl leading-none" onClick={onClose}>x</button>
-          <h2 className="text-base font-semibold text-fg pr-8">{item.title}</h2>
+          <h2 className="text-base font-semibold text-fg pr-8">{item.title_zh ?? item.title}</h2>
+          {item.title_zh && <div className="text-[11px] text-muted mt-0.5 font-mono">{item.title}</div>}
           {item.summary && <p className="text-[13px] text-amber mt-2 font-medium">{item.summary}</p>}
           <div className="font-mono text-2xl font-bold mt-2" style={{ color: scoreColor(item.score) }}>{item.score} 分</div>
           <div className="flex items-center gap-3 mt-2 text-[11px] text-muted font-mono">

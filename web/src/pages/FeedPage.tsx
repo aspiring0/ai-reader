@@ -23,7 +23,7 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
         {item.source_type.toUpperCase()}
       </div>
       <div className="flex justify-between items-start gap-2 mb-2">
-        <div className="text-[13px] font-medium text-fg leading-snug pr-8">{item.title}</div>
+        <div className="text-[13px] font-medium text-fg leading-snug pr-8">{item.title_zh ?? item.title}</div>
         <div className="font-mono text-lg font-bold flex-shrink-0" style={{ color: scoreColor(item.score) }}>{item.score}</div>
       </div>
       {item.summary && <div className="text-[12px] text-amber font-medium mb-2 leading-snug">{item.summary}</div>}
