@@ -103,9 +103,26 @@ None.
 
 None.
 
-## SP4: Codex Skill (ai-radar)
+## SP4: Desktop Deployment
 
-**Status:** Not Started
+**Status:** Planning
+**Started:** 2026-07-16
+
+### Goal
+
+Package AI Radar as a self-contained, desktop-deployable application rather than a Codex skill. The dashboard (Fastify server + React frontend + embedded SQLite) is a standalone app, so the goal is to let a non-developer install and run it with one command and have it persist data and optionally auto-start on boot, with no Node toolchain required on the host.
+
+### Candidate Approaches
+
+- Node SEA / `pkg` single-binary bundling of the server + prebuilt web assets
+- Electron or Tauri wrapper for a native window, tray icon, and auto-start
+- Lightweight path: `npm start` + a startup script / launchd / Task Scheduler entry
+
+### Open Decisions
+
+- Target platforms (Windows first, then macOS/Linux?)
+- Whether a native window (Electron/Tauri) is worth the added complexity vs. a bundled server that opens the browser
+- Auto-update strategy and where the SQLite database lives per platform
 
 ## SP5: Finance Module
 

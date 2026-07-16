@@ -24,10 +24,10 @@ AI Radar continuously polls GitHub, Hacker News, and RSS feeds for trending AI p
     <td width="50%" align="center"><b>Feed — scored cards with trending</b></td>
     <td width="50%" align="center"><b>Detail modal — translated summary &amp; install</b></td>
   </tr>
-  <tr>
-    <td><img src="screenshots/feed_main.png" alt="Feed view showing scored AI tool cards" width="100%"></td>
-    <td><img src="screenshots/item_modal.png" alt="Item detail modal with Chinese translation and install button" width="100%"></td>
-  </tr>
+ <tr>
+    <td><img src="assets/readme/feed_main.png" alt="Feed view showing scored AI tool cards" width="100%"></td>
+    <td><img src="assets/readme/item_modal.png" alt="Item detail modal with Chinese translation and install button" width="100%"></td>
+ </tr>
 </table>
 
 ## Why AI Radar
@@ -48,15 +48,16 @@ git clone <repo-url> ai-radar
 cd ai-radar
 npm install
 
-# configure — add your GitHub token and LLM key in the Settings page,
-# or set them before first launch
+# launch — no .env file needed
 npm run dev        # starts server (:3001) and web (:5173)
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and go to **Settings** to paste:
+No `.env` file required. All secrets (GitHub token, LLM key) live in the local SQLite database via the **Settings** page. The only optional env vars are `AIRADAR_PORT` (default `3001`) and `AIRADAR_DB_PATH`.
 
-- **GitHub Token** — for API rate limits and repo metadata
-- **LLM API Key** — Zhipu GLM key for Chinese translation and summaries
+Open [http://localhost:5173](http://localhost:5173), then in **Settings** paste:
+
+- **GitHub Token** — API rate limits + repo metadata
+- **LLM API Key** — Zhipu GLM key for Chinese translation + summaries
 
 ```bash
 npm test           # vitest unit tests
@@ -105,6 +106,11 @@ Skills and agents discovered by AI Radar can be installed directly into Codex wi
 - **Safety scan** — checks for risky patterns before installation
 - **Compatibility check** — detects `SKILL.md`, MCP manifests, and standalone apps
 - **Codex adapter** — writes skills to `$CODEX_HOME/skills`
+
+## Roadmap
+
+- **SP4 — Desktop Deployment.** Package AI Radar as a self-contained desktop app: single-binary or installer that persists its SQLite database and can auto-start on boot, with no Node toolchain required on the host.
+- **SP5 — Finance Module.** Track funding, grants, and commercial signals alongside the technical radar.
 
 ## License
 
