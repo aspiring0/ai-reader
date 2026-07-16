@@ -15,6 +15,19 @@ const migrations: Migration[] = [
     version: 2,
     sql: 'ALTER TABLE items ADD COLUMN interpreted_at TEXT;',
   },
+  {
+    version: 3,
+    sql: `CREATE TABLE IF NOT EXISTS installed_skills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id TEXT NOT NULL,
+  skill_name TEXT NOT NULL,
+  skill_path TEXT NOT NULL,
+  install_method TEXT,
+  scan_level TEXT,
+  installed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(skill_name)
+);`,
+  },
 ];
 
 /**

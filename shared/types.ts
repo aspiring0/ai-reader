@@ -111,7 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export type LogLevel = 'info' | 'warn' | 'error';
 
 /** Log category */
-export type LogCategory = 'collect' | 'score' | 'api' | 'system' | 'interpret';
+export type LogCategory = 'collect' | 'score' | 'api' | 'system' | 'interpret' | 'install';
 
 /** A log entry stored in the DB */
 export interface LogEntry {

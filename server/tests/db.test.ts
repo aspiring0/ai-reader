@@ -17,6 +17,10 @@ import {
   queryLogs,
   getAuthorCache,
   setAuthorCache,
+  insertInstalledSkill,
+  queryInstalledSkills,
+  deleteInstalledSkill,
+  getInstalledSkill,
 } from '../src/db/repository.js';
 import type { Item, FeedQuery } from '@shared/types';
 
@@ -276,6 +280,44 @@ describe('DB Layer', () => {
 
     it('should return null for uncached author', () => {
       expect(getAuthorCache('unknown')).toBeNull();
+    });
+  });
+
+  describe('InstalledSkills (SP3)', () => {
+    it('should insert and query an installed skill', () => {
+      insertInstalledSkill({
+        item_id: 'github:owner/repo',
+        skill_name: 'my-skill',
+        skill_path: '/home/.codex/skills/my-skill',
+        install_method: 'api',
+        scan_level: 'green',
+      });
+      const all = queryInstalledSkills();
+      expect(all).toHaveLength(1);
+      expect(all[0].skill_name).toBe('my-skill');
+      expect(all[0].scan_level).toBe('green');
+    });
+
+    it('should enforce UNIQUE on skill_name (upsert)', () => {
+      insertInstalledSkill({ item_id: 'a', skill_name: 'dup', skill_path: '/p1' });
+      insertInstalledSkill({ item_id: 'b', skill_name: 'dup', skill_path: '/p2' });
+      const all = queryInstalledSkills();
+      expect(all.filter((s) => s.skill_name === 'dup')).toHaveLength(1);
+      expect(all[0].skill_path).toBe('/p2');
+    });
+
+    it('should get a single installed skill by name', () => {
+      insertInstalledSkill({ item_id: 'c', skill_name: 'findme', skill_path: '/p3' });
+      const skill = getInstalledSkill('findme');
+      expect(skill).not.toBeNull();
+      expect(skill!.item_id).toBe('c');
+    });
+
+    it('should delete an installed skill', () => {
+      insertInstalledSkill({ item_id: 'd', skill_name: 'deleteme', skill_path: '/p4' });
+      expect(deleteInstalledSkill('deleteme')).toBe(true);
+      expect(getInstalledSkill('deleteme')).toBeNull();
+      expect(deleteInstalledSkill('nonexistent')).toBe(false);
     });
   });
 });

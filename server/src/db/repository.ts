@@ -393,3 +393,73 @@ function rowToItem(row: ItemRow): Item {
     score_detail: row.score_detail ? JSON.parse(row.score_detail) as ScoreDetail : null,
   } as Item;
 }
+
+// ── Installed skills (SP3) ────────────────────────────────────
+
+export interface InstalledSkillRow {
+  id: number;
+  item_id: string;
+  skill_name: string;
+  skill_path: string;
+  install_method: string | null;
+  scan_level: string | null;
+  installed_at: string;
+}
+
+export interface InstalledSkill {
+  id: number;
+  item_id: string;
+  skill_name: string;
+  skill_path: string;
+  install_method: string | null;
+  scan_level: string | null;
+  installed_at: string;
+}
+
+/** Record a freshly installed skill (UNIQUE on skill_name prevents duplicates). */
+export function insertInstalledSkill(data: {
+  item_id: string;
+  skill_name: string;
+  skill_path: string;
+  install_method?: string | null;
+  scan_level?: string | null;
+}): void {
+  const db = openDb();
+  db.prepare(
+    `INSERT INTO installed_skills (item_id, skill_name, skill_path, install_method, scan_level)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(skill_name) DO UPDATE SET
+       item_id = excluded.item_id,
+       skill_path = excluded.skill_path,
+       install_method = excluded.install_method,
+       scan_level = excluded.scan_level,
+       installed_at = datetime('now')`,
+  ).run(data.item_id, data.skill_name, data.skill_path, data.install_method ?? null, data.scan_level ?? null);
+}
+
+/** List all installed skills, most recent first. */
+export function queryInstalledSkills(): InstalledSkill[] {
+  const db = openDb();
+  const rows = db.prepare(
+    'SELECT * FROM installed_skills ORDER BY installed_at DESC',
+  ).all() as unknown as InstalledSkillRow[];
+  return rows as InstalledSkill[];
+}
+
+/** Remove an installed skill record by skill_name. */
+export function deleteInstalledSkill(skillName: string): boolean {
+  const db = openDb();
+  const result = db.prepare(
+    'DELETE FROM installed_skills WHERE skill_name = ?',
+  ).run(skillName);
+  return result.changes > 0;
+}
+
+/** Look up an installed skill by skill_name. */
+export function getInstalledSkill(skillName: string): InstalledSkill | null {
+  const db = openDb();
+  const row = db.prepare(
+    'SELECT * FROM installed_skills WHERE skill_name = ?',
+  ).get(skillName) as InstalledSkillRow | undefined;
+  return row ?? null;
+}
