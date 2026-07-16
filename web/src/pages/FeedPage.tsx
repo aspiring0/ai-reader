@@ -85,7 +85,7 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
       {/* Description: Chinese summary + English description for GitHub, summary for news */}
       <div className="mb-2">
         {item.summary && (
-          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2">{item.summary}</div>
+          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-4">{item.summary}</div>
         )}
         {isGithub && ghDescription && ghDescription !== item.summary && (
           <div className="text-[10px] text-muted leading-relaxed line-clamp-1 mt-0.5 italic">{ghDescription}</div>

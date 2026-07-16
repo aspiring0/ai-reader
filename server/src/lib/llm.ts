@@ -20,12 +20,15 @@
    summary: string;
  }
  
- const SYSTEM_PROMPT = [
-   'You are a Chinese tech editor for an AI tools radar.',
-   'Given an item, produce a concise Chinese title (10-25 characters) and a',
-   'Chinese summary (50-150 characters) explaining what it is and why it matters.',
-   'Respond ONLY as JSON: {"title_zh": "...", "summary": "..."}',
- ].join(' ');
+const SYSTEM_PROMPT = [
+  'You are a Chinese tech editor for an AI tools radar.',
+  'Given an item, produce a concise Chinese title (10-25 characters) and a',
+  'detailed Chinese summary (150-350 characters).',
+  'The summary should explain: (1) what the tool/skill does, (2) its main use',
+  'cases or target scenarios, (3) key features or standout capabilities.',
+  'Write in natural Chinese prose, not bullet points. Be specific and informative.',
+  'Respond ONLY as JSON: {"title_zh": "...", "summary": "..."}',
+].join(' ');
  
  const MAX_RETRIES = 2;
  const BACKOFF_BASE_MS = 1000;
@@ -57,22 +60,41 @@
    return null;
  }
  
- /** Call Zhipu GLM to interpret a single item into Chinese title + summary. */
- export async function interpretItem(
-   item: { title: string; summary: string | null; raw_data: string | null },
-   settings: Settings,
- ): Promise<InterpretResult> {
-   const baseUrl = settings.llm_base_url.replace(/\/$/, '');
-   const endpoint = `${baseUrl}/chat/completions`;
- 
-   if (!isAllowedDomain(endpoint)) {
-     throw new LlmError('auth', `LLM endpoint domain not whitelisted: ${new URL(endpoint).hostname}`);
-   }
- 
-   const userContent = JSON.stringify({
-     title: item.title,
-     description: item.summary ?? '',
-   });
+/** Call Zhipu GLM to interpret a single item into Chinese title + summary. */
+export async function interpretItem(
+ item: { title: string; summary: string | null; raw_data: string | null },
+  settings: Settings,
+): Promise<InterpretResult> {
+  const baseUrl = settings.llm_base_url.replace(/\/$/, '');
+  const endpoint = `${baseUrl}/chat/completions`;
+
+  if (!isAllowedDomain(endpoint)) {
+    throw new LlmError('auth', `LLM endpoint domain not whitelisted: ${new URL(endpoint).hostname}`);
+  }
+
+  // Extract additional context from raw_data for richer summaries
+  let extraContext: Record<string, unknown> = {};
+  try {
+    if (item.raw_data) {
+      const rd = JSON.parse(item.raw_data) as Record<string, unknown>;
+      extraContext = {
+        topics: rd.topics,
+        homepage: rd.homepage,
+        language: rd.language,
+        license: typeof rd.license === 'object' && rd.license ? (rd.license as Record<string, unknown>).name : rd.license,
+        stars: rd.stargazers_count,
+        forks: rd.forks_count,
+      };
+    }
+  } catch {
+    // Ignore parse errors, proceed with basic context
+  }
+
+  const userContent = JSON.stringify({
+    title: item.title,
+   description: item.summary ?? '',
+    ...extraContext,
+  });
  
  const body = JSON.stringify({
      model: settings.llm_model,
