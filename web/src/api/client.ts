@@ -37,6 +37,16 @@ export const api = {
     ).toString() : '';
     return request<import('@shared/types').LogEntry[]>('/logs' + qs);
   },
+  install: {
+    check: (itemId: string) =>
+      request<{ compatibility: { tier: string; installable: boolean; skillName: string | null; label: string; reason: string }; scan: { riskLevel: string; totalIssues: number; stages: Record<string, { findings: string[] }> } | null; installable: boolean }>('/install/check/' + encodeURIComponent(itemId), { method: 'POST', body: '{}' }),
+    run: (itemId: string, method?: string) =>
+      request<{ ok: boolean; skillPath: string; method: string; filesWritten: number; warnings: string[] }>('/install/run', { method: 'POST', body: JSON.stringify({ itemId, method }) }),
+    status: () =>
+      request<{ installed: { id: number; item_id: string; skill_name: string; skill_path: string; install_method: string | null; scan_level: string | null; installed_at: string }[] }>('/install/status'),
+    remove: (skillName: string) =>
+      request<{ deleted: string }>('/install/' + encodeURIComponent(skillName), { method: 'DELETE' }),
+  },
   admin: {
     stats: () => request<{ total: number; scored: number; hidden: number; favorited: number }>('/admin/stats'),
     items: (page = 1, limit = 100) =>

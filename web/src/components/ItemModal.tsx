@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { Item } from '@shared/types';
 import { RadarChart, ScoreBars } from './RadarChart';
+import { InstallModal } from './InstallModal';
 import { getGithubMeta, getHNMeta, getRSSMeta } from '../lib/rawData';
 
 function scoreColor(s: number): string {
@@ -40,6 +42,7 @@ export function ItemModal({ item, onClose, onFav }: {
   onClose: () => void;
   onFav?: (id: string) => void;
 }) {
+  const [showInstall, setShowInstall] = useState(false);
   const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
 
@@ -196,12 +199,15 @@ export function ItemModal({ item, onClose, onFav }: {
             </a>
           )}
           {isGithub && (
-            <button className="px-3.5 py-1.5 rounded-md text-xs bg-amber border border-amber text-bg font-semibold hover:bg-amber-br">
+            <button className="px-3.5 py-1.5 rounded-md text-xs bg-amber border border-amber text-bg font-semibold hover:bg-amber-br" onClick={() => setShowInstall(true)}>
               {'\u5B89\u88C5\u5230 Codex'}
             </button>
           )}
         </div>
       </div>
+      {showInstall && (
+        <InstallModal itemId={item.id} repoUrl={item.url} onClose={() => setShowInstall(false)} />
+      )}
     </div>
   );
 }
