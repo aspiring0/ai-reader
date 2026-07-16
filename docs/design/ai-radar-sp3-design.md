@@ -61,7 +61,7 @@ User clicks "Install" on a Feed item
 |------|----------|-----------------|-------|
 | A | "Ready to install (Codex)" | Install button enabled | Green |
 | B | "Compatible (Claude Code format)" | Install button enabled, yellow warning | Yellow |
-| C | "Needs wrapping" | "Wrap and Install" button (generates SKILL.md from README) | Orange |
+| C | "Needs wrapping (deferred)" | "View on GitHub" link only (wrapping deferred to future phase) | Orange |
 | D | "Not a skill (standalone app)" | Install disabled, link to repo only | Gray |
 | E | "MCP Server (manual config)" | Link to MCP setup docs | Blue |
 | F | "Incompatible format" | Install disabled, link to repo only | Gray |
@@ -112,7 +112,7 @@ Codex skills can bundle executable scripts (scripts/ dir). The primary risks:
 |-------|-----------|-------------------|
 | green | 0 issues from S3, no binaries from S1, metadata valid | Yes (one click) |
 | yellow | 1-3 issues from S3, or binaries present, or metadata incomplete | Yes (with confirmation dialog) |
-| red | >3 issues from S3, or critical patterns (rmtree, exec with user input), or prompt injection in S5 | No (blocked, user can override via API only) |
+| red | >3 issues from S3, or critical patterns (rmtree, exec with user input), or prompt injection in S5 | No (completely blocked in UI, link to repo only) |
 
 ## 4. Install Mechanism: Three Approaches Compared
 
@@ -172,8 +172,8 @@ POST /api/install/check/:itemId
   Returns: { compatibility_tier, scan_result, installable }
 
 POST /api/install/run
-  Body: { itemId, force }
-  Runs install (after check has passed or force=true)
+  Body: { itemId }
+  Runs install (after check has passed)
   Returns: { ok, skill_path, warnings }
 
 GET /api/install/status
@@ -242,7 +242,7 @@ When user clicks Install:
 2. Show safety scan report (file inventory, risk findings)
 3. For green: single "Confirm Install" button
 4. For yellow: warning list + "Install Anyway" button
-5. For red: blocked message + "I understand, force install" (requires typing skill name)
+5. For red: blocked message with link to view repo on GitHub (no install option)
 6. Progress bar during download + install
 
 ### SystemPage: Installed Skills Tab

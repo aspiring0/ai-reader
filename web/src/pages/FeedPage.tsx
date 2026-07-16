@@ -32,11 +32,11 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
   const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
 
-  // Extract topic tags for GitHub items
-  const topics = useMemo(() => {
-    if (!isGithub) return [];
-    return getGithubMeta(item.raw_data)?.topics?.slice(0, 2) ?? [];
-  }, [item.raw_data, isGithub]);
+  // Extract GitHub metadata in one pass
+  const ghMeta = useMemo(() => isGithub ? getGithubMeta(item.raw_data) : null, [item.raw_data, isGithub]);
+  const topics = ghMeta?.topics?.slice(0, 3) ?? [];
+  const ghDescription = ghMeta?.description ?? null;
+  const ghLanguage = ghMeta?.language ?? null;
 
   const title = item.title_zh ?? item.title;
   const dateStr = (item.pushed_at ?? item.updated_at)?.slice(0, 10);
@@ -82,14 +82,20 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
       {/* Title */}
       <div className="text-[13px] font-medium text-fg leading-snug line-clamp-2 mb-1.5">{title}</div>
 
-      {/* Summary */}
-      {item.summary && (
-        <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2 mb-2">{item.summary}</div>
-      )}
+      {/* Description: Chinese summary + English description for GitHub, summary for news */}
+      <div className="mb-2">
+        {item.summary && (
+          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2">{item.summary}</div>
+        )}
+        {isGithub && ghDescription && ghDescription !== item.summary && (
+          <div className="text-[10px] text-muted leading-relaxed line-clamp-1 mt-0.5 italic">{ghDescription}</div>
+        )}
+      </div>
 
       {/* Bottom stats */}
       <div className="flex items-center gap-3 text-[10px] text-muted font-mono">
         {isGithub && <span className="flex items-center gap-0.5"><span style={{ color: '#e0af68' }}>{'\u2605'}</span> {fmtN(item.stars)}</span>}
+        {isGithub && ghLanguage && <span>{ghLanguage}</span>}
         {isNews && item.source_type === 'hackernews' && <span>{fmtN(item.stars)} {'\u5206'}</span>}
         {dateStr && <span>{dateStr}</span>}
       </div>
