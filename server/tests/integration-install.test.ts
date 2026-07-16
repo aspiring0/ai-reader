@@ -45,6 +45,11 @@ const CLEAN_FILE_CONTENTS: Record<string, string> = {
   'x.test.js': "console.log('test');\n",
 };
 
+function makeGitTreesResponse(files: typeof CLEAN_REPO_FILES): Response {
+  const tree = files.map(f => ({ path: f.path, type: f.type === 'file' ? 'blob' : 'tree', size: f.size }));
+  return new Response(JSON.stringify({ tree }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
 function makeItem(itemId: string, overrides: Partial<Item> = {}): Item {
   const now = new Date().toISOString();
   return {
@@ -112,6 +117,9 @@ describe('SP3 Integration: discover -> check -> scan -> install -> verify', () =
   it('should run the full install lifecycle end-to-end', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: any) => {
       const url = typeof input === 'string' ? input : (input.url ?? '');
+      if (url.includes('/git/trees/')) {
+        return makeGitTreesResponse(CLEAN_REPO_FILES);
+      }
       if (url.includes('/contents?')) {
         return new Response(JSON.stringify(CLEAN_REPO_FILES), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
@@ -211,6 +219,9 @@ describe('SP3 Integration: discover -> check -> scan -> install -> verify', () =
 
     vi.stubGlobal('fetch', vi.fn(async (input: any) => {
       const url = typeof input === 'string' ? input : (input.url ?? '');
+      if (url.includes('/git/trees/')) {
+        return makeGitTreesResponse(evilFiles);
+      }
       if (url.includes('/contents?')) {
         return new Response(JSON.stringify(evilFiles), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }

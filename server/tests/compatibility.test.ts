@@ -180,7 +180,56 @@ describe('classifyCompatibility', () => {
     expect(result.installable).toBe(false);
   });
 
+  it('should detect nested SKILL.md (skills/<name>/SKILL.md)', async () => {
+    const files = mockContentsResponse([
+      { name: 'README.md', type: 'file', path: 'README.md' },
+      { name: 'skills', type: 'dir', path: 'skills' },
+      { name: 'beautify-github-readme', type: 'dir', path: 'skills/beautify-github-readme' },
+      { name: 'SKILL.md', type: 'file', path: 'skills/beautify-github-readme/SKILL.md' },
+      { name: 'references', type: 'dir', path: 'skills/beautify-github-readme/references' },
+    ]);
+    const meta = mockMeta({ topics: ['codex-skill'] });
+    const fetchSkillMd = vi.fn().mockResolvedValue(VALID_SKILL_MD);
+
+    const result = await classifyCompatibility(files, meta, fetchSkillMd);
+
+    expect(result.tier).toBe('A');
+    expect(result.installable).toBe(true);
+    expect(result.skillDir).toBe('skills/beautify-github-readme');
+    expect(result.skillName).toBe('my-awesome-skill');
+  });
+
+  it('should detect nested SKILL.md with invalid frontmatter (Tier C)', async () => {
+    const files = mockContentsResponse([
+      { name: 'README.md', type: 'file', path: 'README.md' },
+      { name: 'SKILL.md', type: 'file', path: 'skills/foo/SKILL.md' },
+    ]);
+    const meta = mockMeta({ topics: [] });
+    const fetchSkillMd = vi.fn().mockResolvedValue('# No frontmatter here\n\nJust content');
+
+    const result = await classifyCompatibility(files, meta, fetchSkillMd);
+
+    expect(result.tier).toBe('C');
+    expect(result.installable).toBe(false);
+    expect(result.skillDir).toBe('skills/foo');
+  });
+
+  it('should prefer root-level SKILL.md over nested', async () => {
+    const files = mockContentsResponse([
+      { name: 'SKILL.md', type: 'file', path: 'SKILL.md' },
+      { name: 'SKILL.md', type: 'file', path: 'skills/other/SKILL.md' },
+    ]);
+    const meta = mockMeta({ topics: ['codex'] });
+    const fetchSkillMd = vi.fn().mockResolvedValue(VALID_SKILL_MD);
+
+    const result = await classifyCompatibility(files, meta, fetchSkillMd);
+
+    expect(result.tier).toBe('A');
+    expect(result.skillDir).toBe('');
+  });
+
   it('should provide a user-friendly label for each tier', async () => {
+
     const files = mockContentsResponse([
       { name: 'SKILL.md', type: 'file', path: 'SKILL.md' },
     ]);

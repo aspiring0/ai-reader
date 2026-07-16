@@ -2,15 +2,15 @@
  * SP3 Compatibility Detector
  *
  * Classifies a GitHub repo into one of 6 tiers (A-F) based on:
- * - Presence and validity of SKILL.md
+ * - Presence and validity of SKILL.md (root or nested in skills/<name>/)
  * - Topics signaling ecosystem (codex, claude-code, mcp, cursor-rules)
  * - package.json scripts indicating MCP server
  */
 
-/** A file entry from GitHub Contents API. */
+/** A file entry from GitHub API. */
 export interface RepoFile {
   name: string;
-  type: string; // 'file' | 'dir'
+  type: string; // 'file' | 'dir' | 'blob' | 'tree'
   path: string;
 }
 
@@ -30,6 +30,8 @@ export interface CompatibilityResult {
   skillDescription: string | null;
   label: string;
   reason: string;
+  /** Directory within the repo containing SKILL.md ('' for root, 'skills/foo' for nested). */
+  skillDir: string | null;
 }
 
 const TIER_LABELS: Record<CompatibilityResult['tier'], string> = {
@@ -78,9 +80,54 @@ function isMcpPackageJson(pkgJson: string): boolean {
 }
 
 /**
+ * Find the directory containing SKILL.md, checking root first then nested dirs.
+ * Returns null if no SKILL.md found.
+ * Returns '' for root-level SKILL.md.
+ * Returns a relative path like 'skills/my-skill' for nested SKILL.md.
+ */
+function findSkillDir(files: RepoFile[]): string | null {
+  // Root-level SKILL.md
+  if (files.some(f => f.name === 'SKILL.md' && !f.path.includes('/') && (f.type === 'file' || f.type === 'blob'))) {
+    return '';
+  }
+  // Nested: find SKILL.md anywhere in the tree with a path separator
+  const nested = files.find(f =>
+    f.name === 'SKILL.md' &&
+    (f.type === 'file' || f.type === 'blob') &&
+    f.path.includes('/')
+  );
+  if (nested) {
+    return nested.path.substring(0, nested.path.lastIndexOf('/'));
+  }
+  return null;
+}
+
+/** Build a CompatibilityResult with consistent fields. */
+function makeResult(
+  tier: CompatibilityResult['tier'],
+  skillName: string | null,
+  skillDescription: string | null,
+  skillDir: string | null,
+  reason: string,
+): CompatibilityResult {
+  const installable = tier === 'A' || tier === 'B';
+  return {
+    tier,
+    installable,
+    skillName,
+    skillDescription,
+    skillDir,
+    label: TIER_LABELS[tier],
+    reason,
+  };
+}
+
+/**
  * Classify a repo's compatibility with the Codex skill system.
  *
- * @param files - Root-level file listing from GitHub Contents API
+ * Detects SKILL.md at root or in nested directories (skills/<name>/SKILL.md).
+ *
+ * @param files - File listing from GitHub API (may include full paths)
  * @param meta - Repo metadata (topics, name, url, description)
  * @param fetchSkillMd - Async function that returns SKILL.md content (or null)
  * @param fetchPackageJson - Optional async function for package.json content
@@ -91,48 +138,37 @@ export async function classifyCompatibility(
   fetchSkillMd: () => Promise<string | null>,
   fetchPackageJson?: () => Promise<string | null>,
 ): Promise<CompatibilityResult> {
-  const hasSkillMd = files.some(f => f.name === 'SKILL.md' && f.type === 'file');
+  const skillDir = findSkillDir(files);
   const topics = meta.topics.map(t => t.toLowerCase());
 
-  // Path 1: SKILL.md exists
-  if (hasSkillMd) {
+  // Path 1: SKILL.md exists (root or nested)
+  if (skillDir !== null) {
     const skillContent = await fetchSkillMd();
 
     if (skillContent) {
       const { valid, name, description } = validateFrontmatter(skillContent);
 
       if (valid) {
-        // Tier A: valid frontmatter + codex/codex-skill topic
         const isCodex = topics.includes('codex') || topics.includes('codex-skill');
         const tier = isCodex ? 'A' : 'B';
-        return {
-          tier,
-          installable: true,
-          skillName: name,
-          skillDescription: description,
-          label: TIER_LABELS[tier],
-          reason: isCodex
+        return makeResult(
+          tier, name, description, skillDir,
+          isCodex
             ? 'Has valid SKILL.md with Codex ecosystem topics'
             : 'Has valid SKILL.md (non-Codex ecosystem, format compatible)',
-        };
+        );
       }
 
       // Tier C: SKILL.md exists but frontmatter invalid
-      return {
-        tier: 'C',
-        installable: false,
-        skillName: null,
-        skillDescription: null,
-        label: TIER_LABELS.C,
-        reason: 'SKILL.md exists but frontmatter is missing name or description',
-      };
+      return makeResult('C', null, null, skillDir,
+        'SKILL.md exists but frontmatter is missing name or description',
+      );
     }
   }
 
   // Path 2: No SKILL.md - check for MCP signals
   const hasMcpTopic = topics.includes('mcp');
 
-  // Check package.json for MCP server patterns
   let hasMcpInPkg = false;
   if (!hasMcpTopic && fetchPackageJson) {
     const hasPkgJson = files.some(f => f.name === 'package.json');
@@ -145,14 +181,9 @@ export async function classifyCompatibility(
   }
 
   if (hasMcpTopic || hasMcpInPkg) {
-    return {
-      tier: 'E',
-      installable: false,
-      skillName: null,
-      skillDescription: null,
-      label: TIER_LABELS.E,
-      reason: hasMcpTopic ? 'Has MCP topic' : 'package.json indicates MCP server',
-    };
+    return makeResult('E', null, null, null,
+      hasMcpTopic ? 'Has MCP topic' : 'package.json indicates MCP server',
+    );
   }
 
   // Check for cursor-rules / prompt-only repos
@@ -161,23 +192,13 @@ export async function classifyCompatibility(
   );
 
   if (isCursorOrPrompt) {
-    return {
-      tier: 'F',
-      installable: false,
-      skillName: null,
-      skillDescription: null,
-      label: TIER_LABELS.F,
-      reason: 'Topics suggest Cursor rules or prompt templates, not a Codex skill',
-    };
+    return makeResult('F', null, null, null,
+      'Topics suggest Cursor rules or prompt templates, not a Codex skill',
+    );
   }
 
   // Default: Tier D (standalone app, not a skill)
-  return {
-    tier: 'D',
-    installable: false,
-    skillName: null,
-    skillDescription: null,
-    label: TIER_LABELS.D,
-    reason: 'No SKILL.md found, appears to be a standalone application',
-  };
+  return makeResult('D', null, null, null,
+    'No SKILL.md found, appears to be a standalone application',
+  );
 }
