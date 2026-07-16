@@ -38,11 +38,31 @@ None.
 
 ## SP1b: Frontend (FeedPage + SettingsPage + SystemPage)
 
-**Status:** Not Started
+**Status:** Complete
+**Completion:** 100%
 
 ## SP2: Interpretation Layer (Zhipu GLM)
 
-**Status:** Not Started
+**Status:** Complete
+**Completion:** 100%
+**Started:** 2026-07-15
+**Completed:** 2026-07-16
+
+### Tasks
+
+- [x] Design doc reviewed and corrected (preserve title_zh on re-collect)
+- [x] Phase 1: Types + migration v2 + repository (interpreted_at, getUninterpretedItems)
+- [x] Phase 2: LLM client (glm-4-plus, prompt, retry, JSON parse, typed errors)
+- [x] Phase 3: Interpreter module (batch orchestration, error isolation, rate limiter)
+- [x] Phase 4: API routes (interpret/run, interpret/:id, LLM_NOT_CONFIGURED)
+- [x] Phase 5: Pipeline integration (auto-interpret after collect when API key set)
+- [x] Phase 6: Frontend (SettingsPage LLM config, ItemModal Chinese, FeedPage fallback, SystemPage trigger)
+
+### Verification
+
+- Tests: 102/102 passing (10 test files, 19 new SP2 tests)
+- TypeCheck: 0 errors
+- Web build: succeeds
 
 ## SP3: Install System (Safety Scan + Codex Adapter)
 
