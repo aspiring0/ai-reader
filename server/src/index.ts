@@ -11,7 +11,9 @@ import { healthRoutes } from './routes/health.js';
 import { collectRoutes } from './routes/collect.js';
 import { logsRoutes } from './routes/logs.js';
 import { adminRoutes } from './routes/admin.js';
+import { interpretRoutes } from './routes/interpret.js';
 import { logger } from './lib/logger.js';
+import { runInterpretation } from './interpreter/index.js';
 import { getSettings } from './lib/config.js';
 import { setCollectFn, start, setIntervalMs } from './lib/scheduler.js';
 import { GitHubCollector } from './collectors/github.js';
@@ -53,6 +55,7 @@ async function bootstrap(): Promise<void> {
   await app.register(collectRoutes);
   await app.register(logsRoutes);
   await app.register(adminRoutes);
+  await app.register(interpretRoutes);
 
   const collectors = [
     new GitHubCollector(),
@@ -146,6 +149,13 @@ async function bootstrap(): Promise<void> {
 
     const totalDuration = Date.now() - startTime;
     logger.info('collect', 'complete', `Collect run finished`, { durationMs: totalDuration });
+
+    // Auto-interpret newly collected items when LLM API key is configured
+    const postSettings = getSettings();
+    if (postSettings.llm_api_key?.trim()) {
+      logger.info('interpret', 'auto', 'Starting auto-interpretation after collect');
+      await runInterpretation();
+    }
   }
 
   setCollectFn(runCollect);
