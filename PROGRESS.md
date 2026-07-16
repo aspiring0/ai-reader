@@ -90,6 +90,15 @@ None.
 - TypeCheck: 0 errors (server + web)
 - Security: path traversal blocked, skill name sanitized, delete path validated
 
+### Post-SP3 Improvement: Nested Skill Detection
+
+- Detects SKILL.md in subdirectories (skills/<name>/SKILL.md)
+- Git Trees API fallback when Contents API returns empty
+- Installer downloads from correct nested path
+- 3 new compatibility tests for nested detection
+- Tests: 163/163 passing
+- Verified with real repo: oil-oil/beautify-github-readme (Tier A, green)
+
 ### Blockers
 
 None.
