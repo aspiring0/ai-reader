@@ -8,6 +8,10 @@ import { responsePlugin } from '../src/routes/helpers.js';
 import { installRoutes } from '../src/routes/install.js';
 import type { Item } from '@shared/types';
 
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as fs from 'node:fs';
+
 function makeItem(overrides: Partial<Item> = {}): Item {
   const now = new Date().toISOString();
   return {
@@ -58,21 +62,32 @@ describe('Install API Routes', () => {
     });
 
     it('should list installed skills', async () => {
-      insertInstalledSkill({ item_id: 'github:o/r', skill_name: 'my-skill', skill_path: '/p', install_method: 'api', scan_level: 'green' });
+      const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+      process.env.CODEX_HOME = tmpHome;
+      const skillPath = path.join(tmpHome, 'skills', 'my-skill');
+      insertInstalledSkill({ item_id: 'github:o/r', skill_name: 'my-skill', skill_path: skillPath, install_method: 'api', scan_level: 'green' });
       const resp = await app.inject({ method: 'GET', url: '/api/install/status' });
       const body = JSON.parse(resp.body);
       expect(body.data.installed).toHaveLength(1);
       expect(body.data.installed[0].skill_name).toBe('my-skill');
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      delete process.env.CODEX_HOME;
     });
   });
 
   describe('DELETE /api/install/:skillName', () => {
     it('should delete an installed skill', async () => {
-      insertInstalledSkill({ item_id: 'github:o/r', skill_name: 'rm-me', skill_path: '/p' });
+      const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+      process.env.CODEX_HOME = tmpHome;
+      const skillPath = path.join(tmpHome, 'skills', 'rm-me');
+      fs.mkdirSync(skillPath, { recursive: true });
+      insertInstalledSkill({ item_id: 'github:o/r', skill_name: 'rm-me', skill_path: skillPath });
       const resp = await app.inject({ method: 'DELETE', url: '/api/install/rm-me' });
       expect(resp.statusCode).toBe(200);
       const body = JSON.parse(resp.body);
       expect(body.ok).toBe(true);
+      fs.rmSync(tmpHome, { recursive: true, force: true });
+      delete process.env.CODEX_HOME;
     });
 
     it('should return 404 for unknown skill', async () => {

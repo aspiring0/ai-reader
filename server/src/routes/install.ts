@@ -30,9 +30,17 @@ export async function installRoutes(app: FastifyInstance): Promise<void> {
       if (!existing) {
         return fail(reply, 'NOT_FOUND', `Skill not found: ${skillName}`, 404);
       }
+      // Defense-in-depth: verify skill_path is within the expected skills directory
+      const expectedBase = path.join(process.env.CODEX_HOME || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.codex'), 'skills');
+      const resolvedPath = path.resolve(existing.skill_path);
+      const resolvedBase = path.resolve(expectedBase);
+      if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
+        logger.error('install', 'uninstall', `Rejected delete outside skills dir: ${existing.skill_path}`);
+        return fail(reply, 'FORBIDDEN', 'Skill path is outside the allowed directory', 403);
+      }
       // Remove from filesystem if the path still exists
-      if (existing.skill_path && fs.existsSync(existing.skill_path)) {
-        fs.rmSync(existing.skill_path, { recursive: true, force: true });
+      if (resolvedPath && fs.existsSync(resolvedPath)) {
+        fs.rmSync(resolvedPath, { recursive: true, force: true });
         logger.info('install', 'uninstall', `Removed ${existing.skill_path}`);
       }
       deleteInstalledSkill(skillName);
@@ -40,13 +48,15 @@ export async function installRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  /** Check compatibility + run safety scan for an item (before install). */
-  app.post<{ Params: { itemId: string } }>(
-    '/api/install/check/:itemId',
+  /** Check compatibility + run safety scan for an item (before install).
+   * Uses wildcard param because item IDs contain slashes (e.g. github:owner/repo). */
+  app.post<{ Params: { '*': string } }>(
+    '/api/install/check/*',
     async (req, reply) => {
-      const item = getItemById(req.params.itemId);
+      const itemId = req.params['*'];
+      const item = getItemById(itemId);
       if (!item) {
-        return fail(reply, 'NOT_FOUND', `Item not found: ${req.params.itemId}`, 404);
+        return fail(reply, 'NOT_FOUND', `Item not found: ${itemId}`, 404);
       }
 
       // Parse repo metadata from raw_data
@@ -145,7 +155,9 @@ export async function installRoutes(app: FastifyInstance): Promise<void> {
       const settings = getSettings();
       const codexHome = process.env.CODEX_HOME || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.codex');
       const repoFullName = item.source_id;
-      const skillName = (item.raw_data ? safeParseSkillName(item.raw_data) : null) ?? item.source_id.replace('/', '-');
+      const rawSkillName = (item.raw_data ? safeParseSkillName(item.raw_data) : null) ?? item.source_id.replace('/', '-');
+      // Sanitize: keep only word chars, hyphens, dots; strip path separators
+      const skillName = rawSkillName.replace(/[^\w.-]/g, '-').replace(/^\.+/, '');
       const token = settings.github_token || undefined;
 
       try {
