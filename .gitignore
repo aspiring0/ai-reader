@@ -25,3 +25,7 @@ coverage/
 
 # Verification screenshots
 screenshots/
+
+# Root-level temporary screenshots and scripts (Playwright verification artifacts)
+/*.png
+/*.cjs
