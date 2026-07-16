@@ -5,46 +5,51 @@
  *
  * Handles these patterns:
  *  - Numbered items: "1. 核心功能：..." -> labeled section
- *  - Sub-bullets: "   - 安装：..." -> indented list item
- *  - Key-value: "核心功能：..." -> labeled section
- *  - Free text -> paragraph
+ *  - Sub-bullets: "- 安装：..." -> indented list item
+ *  - Unstructured paragraphs -> split by sentence for readability
+ *  - Inline code (backtick-wrapped) -> monospace rendering
  */
 interface SummaryBlock {
-  type: 'intro' | 'section' | 'bullet' | 'code' | 'paragraph';
+  type: 'intro' | 'section' | 'bullet' | 'paragraph';
   label?: string;
   text: string;
   subItems?: { label?: string; text: string }[];
 }
 
+const LABEL_MAP: Record<string, string> = {
+  '\u6838\u5fc3\u529f\u80fd': '\u6838\u5fc3\u529f\u80fd',
+  '\u4f7f\u7528\u573a\u666f': '\u4f7f\u7528\u573a\u666f',
+  '\u5165\u95e8\u6307\u5357': '\u5165\u95e8\u6307\u5357',
+  '\u4eae\u70b9': '\u4eae\u70b9',
+  '\u7a81\u51fa\u7279\u6027': '\u4eae\u70b9',
+  '\u4f7f\u7528\u65b9\u6cd5': '\u5165\u95e8\u6307\u5357',
+  '\u5b89\u88c5\u65b9\u6cd5': '\u5165\u95e8\u6307\u5357',
+};
+
 function parseSummary(summary: string): SummaryBlock[] {
-  const lines = summary.split('\n');
+  const lines = summary.split('\n').map(l => l.trim()).filter(l => l);
   const blocks: SummaryBlock[] = [];
   let currentSection: SummaryBlock | null = null;
   let introText: string[] = [];
 
   for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
     // Numbered item: "1. Label：text" or "1. text"
-    const numMatch = trimmed.match(/^(\d+)[\.\uff0e]\s*(.+)/);
+    const numMatch = line.match(/^(\d+)[\.\uff0e]\s*(.+)/);
     // Sub-bullet: "- text" or "- Label：text"
-    const bulletMatch = trimmed.match(/^[-\u2022]\s*(.+)/);
+    const bulletMatch = line.match(/^[-\u2022]\s*(.+)/);
 
     if (numMatch) {
-      // Flush intro
       if (introText.length > 0) {
         blocks.push({ type: 'intro', text: introText.join(' ') });
         introText = [];
       }
-      // Flush previous section
       if (currentSection) blocks.push(currentSection);
 
       const rest = numMatch[2];
-      // Check for "Label：text" pattern
       const kvMatch = rest.match(/^([\u4e00-\u9fa5\w]{2,8})[\uff1a:]\s*(.+)/);
       if (kvMatch) {
-        currentSection = { type: 'section', label: kvMatch[1], text: kvMatch[2], subItems: [] };
+        const mapped = LABEL_MAP[kvMatch[1]] ?? kvMatch[1];
+        currentSection = { type: 'section', label: mapped, text: kvMatch[2], subItems: [] };
       } else {
         currentSection = { type: 'section', text: rest, subItems: [] };
       }
@@ -57,19 +62,19 @@ function parseSummary(summary: string): SummaryBlock[] {
         currentSection.subItems!.push({ text: rest });
       }
     } else {
-      // Check if this is a standalone key-value line
-      const kvMatch = trimmed.match(/^([\u4e00-\u9fa5]{2,6})[\uff1a:]\s*(.+)/);
-      if (kvMatch && !currentSection) {
+      // Check for standalone key-value line (Label：text)
+      const kvMatch = line.match(/^([\u4e00-\u9fa5]{2,6})[\uff1a:]\s*(.+)/);
+      if (kvMatch && !currentSection && lines.length > 2) {
         if (introText.length > 0) {
           blocks.push({ type: 'intro', text: introText.join(' ') });
           introText = [];
         }
-        currentSection = { type: 'section', label: kvMatch[1], text: kvMatch[2], subItems: [] };
+        const mapped = LABEL_MAP[kvMatch[1]] ?? kvMatch[1];
+        currentSection = { type: 'section', label: mapped, text: kvMatch[2], subItems: [] };
       } else if (currentSection) {
-        // Continuation of current section
-        currentSection.text += ' ' + trimmed;
+        currentSection.text += ' ' + line;
       } else {
-        introText.push(trimmed);
+        introText.push(line);
       }
     }
   }
@@ -78,6 +83,15 @@ function parseSummary(summary: string): SummaryBlock[] {
     blocks.push({ type: 'intro', text: introText.join(' ') });
   }
   if (currentSection) blocks.push(currentSection);
+
+  // Fallback: if no structure was detected, split by sentences for readability
+  if (blocks.length === 1 && blocks[0].type === 'intro') {
+    const text = blocks[0].text;
+    const sentences = text.split(/(?<=\u3002)\s*/).filter(s => s.trim());
+    if (sentences.length > 2) {
+      return sentences.map(s => ({ type: 'paragraph' as const, text: s.trim() }));
+    }
+  }
 
   return blocks;
 }

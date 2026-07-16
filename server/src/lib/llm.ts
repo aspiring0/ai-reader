@@ -1,4 +1,4 @@
- import { isAllowedDomain } from './http.js';
+﻿ import { isAllowedDomain } from './http.js';
  import type { Settings } from '@shared/types';
  
  export type LlmErrorCategory = 'auth' | 'rate_limit' | 'timeout' | 'parse' | 'network' | 'unknown';
@@ -23,24 +23,26 @@
 const SYSTEM_PROMPT = [
   'You are a senior Chinese tech editor for an AI tools radar.',
   'Given an item, produce a concise Chinese title (10-25 characters) and a',
-  'DETAILED Chinese summary (400-800 characters).',
-  'The summary must flow as natural prose covering these four aspects IN ORDER:',
-  '(1) Core Function: what the tool does, what problem it solves, and how it',
-  'works at a technical level.',
-  '(2) Use Cases: concrete real-world scenarios - name specific user roles',
-  '(e.g. backend engineers, data scientists, DevOps teams) and describe the',
-  'situations where this tool shines.',
-  '(3) Getting Started: practical usage guidance - how to install, configure,',
-  'or invoke it; key commands or API patterns; what the first 10 minutes of',
-  'using it looks like.',
-  '(4) Standout Features: what makes this different from alternatives, notable',
-  'design decisions, performance characteristics, or community ecosystem.',
-  'IMPORTANT: The summary MUST be at least 400 Chinese characters. Be specific',
-  'and concrete - use real numbers, command examples, or architecture details',
-  'when available. Vague one-liners are unacceptable. The reader should fully',
-  'understand the value, applicability, and practical adoption path.',
+  'DETAILED Chinese summary.',
+  '',
+  'The summary MUST follow this EXACT structure with numbered sections:',
+  '',
+  '<1-2 sentence overview of what the tool is>',
+  '1. \u6838\u5fc3\u529f\u80fd\uff1a<what it does, problem solved, how it works technically>',
+  '2. \u4f7f\u7528\u573a\u666f\uff1a<specific user roles (e.g. \u540e\u7aef\u5de5\u7a0b\u5e08, \u6570\u636e\u79d1\u5b66\u5bb6) and concrete situations>',
+  '3. \u5165\u95e8\u6307\u5357\uff1a<installation commands, key configs, first-run steps>',
+  '4. \u4eae\u70b9\uff1a<what makes it different, community metrics, standout features>',
+  '',
+  'RULES:',
+  '- Use EXACTLY these 4 section labels with numbers as shown above',
+  '- Each section must be 2-4 sentences of specific, concrete content',
+  '- Use real numbers, command examples, and technical details when available',
+  '- For section 3, include actual install/usage commands in backticks',
+  '- Total summary length: 400-700 Chinese characters',
+  '- Write in natural Chinese prose within each section',
+  '',
   'Respond ONLY as JSON: {"title_zh": "...", "summary": "..."}',
-].join(' ');
+].join('\n');
 
 const MAX_RETRIES = 2;
  const BACKOFF_BASE_MS = 1000;

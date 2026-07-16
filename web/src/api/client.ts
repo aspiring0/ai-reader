@@ -1,4 +1,4 @@
-const BASE = '/api';
+﻿const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
@@ -23,6 +23,12 @@ export const api = {
     return request<{ items: import('@shared/types').Item[]; total: number; page: number; limit: number }>('/feed' + qs);
   },
   item: (id: string) => request<import('@shared/types').Item>('/feed/' + encodeURIComponent(id)),
+  trending: () => request<{ items: import('@shared/types').Item[] }>('/feed/trending'),
+  newSince: (since?: string) => {
+    const qs = since ? '?since=' + encodeURIComponent(since) : '';
+    return request<{ items: import('@shared/types').Item[]; since: string }>('/feed/new' + qs);
+  },
+  meta: () => request<{ lastCollect: string | null }>('/feed/meta'),
   settings: () => request<import('@shared/types').Settings>('/settings'),
   updateSettings: (body: Partial<import('@shared/types').Settings>) =>
     request<import('@shared/types').Settings>('/settings', { method: 'PUT', body: JSON.stringify(body) }),

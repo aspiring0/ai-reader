@@ -129,6 +129,40 @@ export function getItemCount(): number {
   return row.c;
 }
 
+/** Query trending items by recent star growth (stars - stars_prev DESC). */
+export function queryTrending(limit = 10): Item[] {
+  const db = openDb();
+  const rows = db.prepare(
+    `SELECT * FROM items
+     WHERE status != 'hidden' AND stars_prev IS NOT NULL AND stars_prev > 0
+       AND (stars - stars_prev) > 0
+     ORDER BY (stars - stars_prev) DESC
+     LIMIT ?`,
+  ).all(Math.min(50, limit)) as unknown as ItemRow[];
+  return rows.map(rowToItem);
+}
+
+/** Query items first seen after a given timestamp (new since last refresh). */
+export function queryNewSince(since: string, limit = 20): Item[] {
+  const db = openDb();
+  const rows = db.prepare(
+    `SELECT * FROM items
+     WHERE status != 'hidden' AND collected_at > ?
+     ORDER BY stars DESC
+     LIMIT ?`,
+  ).all(since, Math.min(50, limit)) as unknown as ItemRow[];
+  return rows.map(rowToItem);
+}
+
+/** Get the most recent collect timestamp (for 'new since' queries). */
+export function getLastCollectTime(): string | null {
+  const db = openDb();
+  const row = db.prepare(
+    `SELECT MAX(collected_at) as ts FROM items`,
+  ).get() as { ts: string | null };
+  return row.ts;
+}
+
 /** Delete an item by id. */
 export function deleteItem(id: string): void {
   const db = openDb();

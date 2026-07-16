@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { Item } from '@shared/types';
@@ -20,7 +20,6 @@ function scoreColor(s: number): string {
   return '#5e5236';
 }
 
-/** Tag palette: rotate accent colors for topic tags. */
 const TAG_COLORS = [
   { bg: 'rgba(122,162,247,.15)', fg: '#7aa2f7' },
   { bg: 'rgba(187,154,247,.15)', fg: '#bb9af7' },
@@ -32,7 +31,6 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
   const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
 
-  // Extract GitHub metadata in one pass
   const ghMeta = useMemo(() => isGithub ? getGithubMeta(item.raw_data) : null, [item.raw_data, isGithub]);
   const topics = ghMeta?.topics?.slice(0, 3) ?? [];
   const ghDescription = ghMeta?.description ?? null;
@@ -46,7 +44,6 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
       className="group relative rounded-lg border border-border bg-surface p-3.5 cursor-pointer transition-all hover:border-border-lt hover:bg-surface2"
       onClick={onClick}
     >
-      {/* Top row: tags + score */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex flex-wrap gap-1">
           {topics.length > 0 ? (
@@ -71,7 +68,6 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
             </span>
           )}
         </div>
-        {/* Score badge: skills only */}
         {isGithub && (
           <span className="font-mono text-lg font-bold leading-none flex-shrink-0" style={{ color: scoreColor(item.score) }}>
             {item.score}
@@ -79,10 +75,8 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
         )}
       </div>
 
-      {/* Title */}
       <div className="text-[13px] font-medium text-fg leading-snug line-clamp-2 mb-1.5">{title}</div>
 
-      {/* Description: Chinese summary + English description for GitHub, summary for news */}
       <div className="mb-2">
         {item.summary && (
           <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-4">{item.summary}</div>
@@ -92,12 +86,37 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
         )}
       </div>
 
-      {/* Bottom stats */}
       <div className="flex items-center gap-3 text-[10px] text-muted font-mono">
         {isGithub && <span className="flex items-center gap-0.5"><span style={{ color: '#e0af68' }}>{'\u2605'}</span> {fmtN(item.stars)}</span>}
         {isGithub && ghLanguage && <span>{ghLanguage}</span>}
         {isNews && item.source_type === 'hackernews' && <span>{fmtN(item.stars)} {'\u5206'}</span>}
         {dateStr && <span>{dateStr}</span>}
+      </div>
+    </div>
+  );
+}
+
+function TrendingCard({ item, onClick }: { item: Item; onClick: () => void }) {
+  const ghMeta = useMemo(() => getGithubMeta(item.raw_data), [item.raw_data]);
+  const title = item.title_zh ?? item.title;
+  const growth = item.stars_prev ? item.stars - item.stars_prev : 0;
+
+  return (
+    <div
+      className="flex-shrink-0 w-[180px] rounded-lg border border-border bg-surface p-3 cursor-pointer transition-all hover:border-border-lt hover:bg-surface2"
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold" style={{ background: 'rgba(224,175,104,.15)', color: '#e0af68' }}>
+          {'\u2191 ' + fmtN(growth)}
+        </span>
+        <span className="font-mono text-sm font-bold" style={{ color: scoreColor(item.score) }}>{item.score}</span>
+      </div>
+      <div className="text-[12px] font-medium text-fg leading-snug line-clamp-2 mb-1">{title}</div>
+      <div className="flex items-center gap-2 text-[10px] text-muted font-mono">
+        <span style={{ color: '#e0af68' }}>{'\u2605'}</span>
+        <span>{fmtN(item.stars)}</span>
+        {ghMeta?.language && <span>{ghMeta.language}</span>}
       </div>
     </div>
   );
@@ -165,6 +184,11 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
     queryFn: () => api.feed(feedParams),
   });
 
+  const { data: trendingData } = useQuery({
+    queryKey: ['trending'],
+    queryFn: () => api.trending(),
+  });
+
   const favMutation = useMutation({
     mutationFn: (id: string) => api.admin.update(id, { is_favorited: 1 }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['feed'] }); qc.invalidateQueries({ queryKey: ['item'] }); },
@@ -178,19 +202,37 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
 
   const allItems = data?.items ?? [];
   const favItems = allItems.filter(i => i.is_favorited);
+  const trendingItems = (trendingData?.items ?? []).slice(0, 8);
 
-  // For news mode, default sort to recent
   const effectiveSort = tab === 'news' && sort === 'score' ? 'recent' : sort;
 
- const filteredItems = tab === 'fav' ? favItems : allItems;
+  const filteredItems = tab === 'fav' ? favItems : allItems;
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
   const showItems = filteredItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Reset page when filters change
   React.useEffect(() => { setPage(1); }, [tab, sourceFilter, typeFilter, effectiveSort, search]);
+
+  const showTrending = tab === 'skill' && page === 1 && !search && sourceFilter === 'all' && typeFilter === 'all';
 
   return (
     <div>
+      {/* Trending strip */}
+      {showTrending && trendingItems.length > 0 && (
+        <div className="px-3.5 pt-3.5">
+          <div className="rounded-lg border border-border bg-surface2/50 p-3">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="font-mono text-[10px] uppercase tracking-wide text-amber font-bold">{'\u672C\u5468\u70ED\u95E8'}</span>
+              <span className="text-[10px] text-muted">{'\u6309\u661F\u6807\u589e\u957F\u6392\u5e8f'}</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {trendingItems.map(item => (
+                <TrendingCard key={item.id} item={item} onClick={() => setSelectedId(item.id)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky filter bar */}
       <div className="sticky top-11 z-40 flex items-center gap-2.5 px-3.5 py-2 bg-bg/95 backdrop-blur border-b border-border flex-wrap">
         <input
