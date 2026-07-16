@@ -20,6 +20,22 @@ export function isAllowedDomain(url: string): boolean {
   }
 }
 
+/**
+ * Check if a URL is allowed for LLM API calls.
+ * More permissive than the collect whitelist: allows any HTTPS domain
+ * and localhost (for local LLMs like Ollama).
+ */
+export function isLlmEndpoint(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') return true;
+    if (parsed.protocol === 'https:') return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** Add a domain to the whitelist (for user-configured RSS feeds). */
 export function addAllowedDomain(domain: string): void {
   DOMAIN_WHITELIST.add(domain);

@@ -82,6 +82,7 @@ export interface Settings {
   topic_words: string[];
   score_weights: ScoreWeights;
   score_threshold: number;
+  llm_provider: string;
   llm_api_key: string;
   llm_base_url: string;
   llm_model: string;
@@ -101,11 +102,25 @@ export const DEFAULT_SETTINGS: Settings = {
     issue_health: 0.10,
   },
   score_threshold: 20,
+  llm_provider: 'zhipu',
   llm_api_key: '',
   llm_base_url: 'https://open.bigmodel.cn/api/paas/v4',
   llm_model: 'glm-4-plus',
   llm_timeout_ms: 30000,
 };
+
+/** LLM provider preset returned by the API */
+export interface ProviderPreset {
+  id: string;
+  label: string;
+  base_url: string;
+  models: string[];
+  default_model: string;
+  key_required: boolean;
+  key_label: string;
+  key_placeholder: string;
+  docs_url: string;
+}
 
 /** Log level */
 export type LogLevel = 'info' | 'warn' | 'error';

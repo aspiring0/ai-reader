@@ -64,4 +64,9 @@ export const api = {
     create: (body: Record<string, unknown>) =>
       request<import('@shared/types').Item>('/admin/items', { method: 'POST', body: JSON.stringify(body) }),
   },
+  llm: {
+    providers: () => request<{ providers: import('@shared/types').ProviderPreset[] }>('/llm/providers'),
+    test: (body: { provider?: string; model?: string; api_key?: string; base_url?: string }) =>
+      request<{ success: boolean; message: string }>('/llm/test', { method: 'POST', body: JSON.stringify(body) }),
+  },
 };

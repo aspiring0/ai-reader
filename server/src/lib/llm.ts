@@ -1,4 +1,4 @@
-﻿ import { isAllowedDomain } from './http.js';
+﻿ import { isLlmEndpoint } from './http.js';
  import type { Settings } from '@shared/types';
  
  export type LlmErrorCategory = 'auth' | 'rate_limit' | 'timeout' | 'parse' | 'network' | 'unknown';
@@ -82,8 +82,8 @@ export async function interpretItem(
   const baseUrl = settings.llm_base_url.replace(/\/$/, '');
   const endpoint = `${baseUrl}/chat/completions`;
 
-  if (!isAllowedDomain(endpoint)) {
-    throw new LlmError('auth', `LLM endpoint domain not whitelisted: ${new URL(endpoint).hostname}`);
+  if (!isLlmEndpoint(endpoint)) {
+    throw new LlmError('auth', `LLM endpoint must be HTTPS or localhost: ${new URL(endpoint).hostname}`);
   }
 
   // Extract additional context from raw_data for richer summaries
