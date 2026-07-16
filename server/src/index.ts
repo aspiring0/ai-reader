@@ -111,12 +111,13 @@ async function bootstrap(): Promise<void> {
             score: scored[i].score,
             score_detail: scored[i].detail as ScoreDetail,
             status: scored[i].score >= (settings.score_threshold ?? 20) ? 'scored' : 'hidden',
-            is_read: 0,
-            is_favorited: 0,
-            collected_at: now,
-            created_at: now,
-            updated_at: now,
-          };
+           is_read: 0,
+           is_favorited: 0,
+           collected_at: now,
+           created_at: now,
+           updated_at: now,
+           interpreted_at: null,
+         };
           // Preserve created_at for existing items via upsert (ON CONFLICT keeps original)
           void existing;
           upsertItem(item);

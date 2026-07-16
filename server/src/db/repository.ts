@@ -20,15 +20,15 @@ export function upsertItem(item: Item): void {
       id, source_type, source_id, url, title, title_zh, summary, lang,
       item_type, raw_data, stars, stars_prev, forks, author, pushed_at,
       score, score_detail, status, is_read, is_favorited,
-      collected_at, created_at, updated_at
+      collected_at, created_at, updated_at, interpreted_at
     ) VALUES (
       @id, @source_type, @source_id, @url, @title, @title_zh, @summary, @lang,
       @item_type, @raw_data, @stars, @stars_prev, @forks, @author, @pushed_at,
       @score, @score_detail, @status, @is_read, @is_favorited,
-      @collected_at, @created_at, @updated_at
+      @collected_at, @created_at, @updated_at, @interpreted_at
     )
     ON CONFLICT(source_type, source_id) DO UPDATE SET
-      url = @url, title = @title, title_zh = @title_zh, summary = @summary,
+      url = @url, title = @title,
       lang = @lang, item_type = @item_type, raw_data = @raw_data,
       stars = @stars, stars_prev = @stars_prev, forks = @forks,
       author = @author, pushed_at = @pushed_at, score = @score,
@@ -41,6 +41,7 @@ export function upsertItem(item: Item): void {
     raw_data: item.raw_data ?? null,
     title_zh: item.title_zh,
     summary: item.summary,
+    interpreted_at: item.interpreted_at ?? null,
     author: item.author,
     pushed_at: item.pushed_at,
     stars_prev: item.stars_prev,
@@ -137,7 +138,7 @@ export function deleteItem(id: string): void {
 /** Partially update an item's editable fields. */
 export function updateItemFields(
   id: string,
-  fields: Partial<Pick<Item, 'title' | 'title_zh' | 'summary' | 'score' | 'status' | 'item_type' | 'lang' | 'url' | 'is_favorited' | 'is_read'>>
+  fields: Partial<Pick<Item, 'title' | 'title_zh' | 'summary' | 'score' | 'status' | 'item_type' | 'lang' | 'url' | 'is_favorited' | 'is_read' | 'interpreted_at'>>
 ): void {
   const db = openDb();
   const sets: string[] = [];
@@ -145,7 +146,7 @@ export function updateItemFields(
   const allowed: Record<string, string> = {
     title: 'title', title_zh: 'title_zh', summary: 'summary', score: 'score',
     status: 'status', item_type: 'item_type', lang: 'lang', url: 'url',
-    is_favorited: 'is_favorited', is_read: 'is_read',
+    is_favorited: 'is_favorited', is_read: 'is_read', interpreted_at: 'interpreted_at',
   };
   for (const [k, v] of Object.entries(fields)) {
     if (allowed[k]) { sets.push(`${allowed[k]} = ?`); vals.push(v as string | number); }
@@ -159,6 +160,24 @@ export function updateItemFields(
 /** Create a manual item. Caller must provide a valid Item object. */
 export function createManualItem(item: Item): void {
   upsertItem(item);
+}
+
+/** Get items that have not been interpreted yet (interpreted_at IS NULL, status = scored). */
+export function getUninterpretedItems(limit = 50): Item[] {
+  const db = openDb();
+  const rows = db.prepare(
+    "SELECT * FROM items WHERE interpreted_at IS NULL AND status = 'scored' ORDER BY score DESC LIMIT ?"
+  ).all(limit) as unknown as ItemRow[];
+  return rows.map(rowToItem);
+}
+
+/** Count uninterpreted items. */
+export function getUninterpretedCount(): number {
+  const db = openDb();
+  const row = db.prepare(
+    "SELECT COUNT(*) as c FROM items WHERE interpreted_at IS NULL AND status = 'scored'"
+  ).get() as { c: number };
+  return row.c;
 }
 
 /** Count items by status for admin dashboard. */
@@ -347,6 +366,7 @@ interface ItemRow {
   collected_at: string | null;
   created_at: string;
   updated_at: string;
+  interpreted_at: string | null;
 }
 
 function rowToItem(row: ItemRow): Item {

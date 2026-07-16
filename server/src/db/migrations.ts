@@ -11,6 +11,10 @@ const migrations: Migration[] = [
     version: 1,
     sql: '',
   },
+  {
+    version: 2,
+    sql: 'ALTER TABLE items ADD COLUMN interpreted_at TEXT;',
+  },
 ];
 
 /**

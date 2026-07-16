@@ -83,6 +83,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         collected_at: now,
         created_at: now,
         updated_at: now,
+        interpreted_at: null,
       };
       upsertItem(item);
       logger.info('api', 'admin_create', 'Created manual item ' + id);

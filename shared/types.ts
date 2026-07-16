@@ -34,6 +34,7 @@ export interface Item {
   collected_at: string | null;
   created_at: string;
   updated_at: string;
+  interpreted_at: string | null;
 }
 
 /** Per-dimension score breakdown (0-1 each before weighting) */
@@ -110,7 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export type LogLevel = 'info' | 'warn' | 'error';
 
 /** Log category */
-export type LogCategory = 'collect' | 'score' | 'api' | 'system';
+export type LogCategory = 'collect' | 'score' | 'api' | 'system' | 'interpret';
 
 /** A log entry stored in the DB */
 export interface LogEntry {
@@ -164,6 +165,7 @@ export interface HealthResponse {
   db_items: number;
   last_collect: string | null;
   github_token: boolean;
+  uninterpreted_count: number;
 }
 
 /** Collect run result per source */
