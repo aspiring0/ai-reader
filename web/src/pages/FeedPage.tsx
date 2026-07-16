@@ -16,33 +16,24 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
   const typeColor = isGithub ? '#9ece6a' : isNews ? '#e0af68' : '#7aa2f7';
   const typeBg = isGithub ? 'rgba(158,206,106,.2)' : isNews ? 'rgba(224,175,104,.2)' : 'rgba(122,162,247,.2)';
+  const title = item.title_zh ?? item.title;
 
   return (
     <div className="relative rounded-lg border border-border bg-surface p-3 cursor-pointer hover:border-border-lt transition-all" onClick={onClick}>
       <div className="absolute top-0 right-0 px-2 py-0.5 text-[9px] font-mono font-bold rounded-bl-lg rounded-tr-lg" style={{ background: typeBg, color: typeColor }}>
         {item.source_type.toUpperCase()}
       </div>
-      <div className="flex justify-between items-start gap-2 mb-2">
-        <div className="text-[13px] font-medium text-fg leading-snug pr-8">{item.title_zh ?? item.title}</div>
+      <div className="flex justify-between items-start gap-2 mb-1.5">
+        <div className="text-[13px] font-medium text-fg leading-snug pr-8 line-clamp-2">{title}</div>
         <div className="font-mono text-lg font-bold flex-shrink-0" style={{ color: scoreColor(item.score) }}>{item.score}</div>
       </div>
-      {item.summary && <div className="text-[12px] text-amber font-medium mb-2 leading-snug">{item.summary}</div>}
-      <div className="flex gap-3 text-[11px] text-muted flex-wrap">
-        {isGithub && (
-          <>
-            <span>star <span className="font-mono text-fg-dim">{fmtN(item.stars)}</span></span>
-            <span>fork <span className="font-mono text-fg-dim">{fmtN(item.forks)}</span></span>
-            <span>{item.lang}</span>
-          </>
-        )}
+      {item.summary && (
+        <div className="text-[11px] text-amber/80 leading-snug line-clamp-1 mb-1.5">{item.summary}</div>
+      )}
+      <div className="flex gap-2.5 text-[10px] text-muted font-mono">
+        {isGithub && <span>{fmtN(item.stars)} star</span>}
         <span>{item.updated_at?.slice(0, 10)}</span>
       </div>
-      {item.url && (
-        <div className="mt-2">
-          <a href={item.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-            className="text-blue hover:underline text-[10px] font-mono">{item.url.replace('https://', '')}</a>
-        </div>
-      )}
     </div>
   );
 }
