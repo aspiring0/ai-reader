@@ -9,12 +9,12 @@ import { AdminPage } from './pages/AdminPage';
 type Page = 'skill' | 'news' | 'fav' | 'settings' | 'system' | 'admin';
 
 const NAV: { key: Page; label: string }[] = [
-  { key: 'skill', label: '技能 & 项目' },
-  { key: 'news', label: 'AI 热点' },
-  { key: 'fav', label: '收藏' },
-  { key: 'settings', label: '设置' },
-  { key: 'system', label: '系统' },
-  { key: 'admin', label: '管理' },
+  { key: 'skill', label: '\u6280\u80FD & \u9879\u76EE' },
+  { key: 'news', label: 'AI \u70ED\u70B9' },
+  { key: 'fav', label: '\u6536\u85CF' },
+  { key: 'settings', label: '\u8BBE\u7F6E' },
+  { key: 'system', label: '\u7CFB\u7EDF' },
+  { key: 'admin', label: '\u7BA1\u7406' },
 ];
 
 export default function App() {
@@ -23,8 +23,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* nav */}
-      <nav className="flex items-center gap-3 px-4 h-11 bg-surface border-b border-border">
+      <nav className="sticky top-0 z-50 flex items-center gap-3 px-4 h-11 bg-surface/95 backdrop-blur border-b border-border">
         <div className="font-semibold text-[13px] text-amber flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-green" style={{ boxShadow: '0 0 6px #9ece6a' }} />
           AI RADAR
@@ -44,7 +43,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* content */}
       <div className="flex-1">
         {page === 'skill' && <FeedPage mode="skill" />}
         {page === 'news' && <FeedPage mode="news" />}
@@ -54,14 +52,13 @@ export default function App() {
         {page === 'admin' && <AdminPage />}
       </div>
 
-      {/* status bar */}
       <div className="flex items-center gap-4 px-4 py-1.5 bg-surface border-t border-border font-mono text-[10px] text-muted">
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-green" style={{ boxShadow: '0 0 6px #9ece6a' }} />
-          在线
+          {'\u5728\u7EBF'}
         </span>
-        <span>{health?.db_items ?? '--'} 条数据</span>
-        {health?.last_collect && <span>上次同步 {health.last_collect.slice(11, 19)}</span>}
+        <span>{health?.db_items ?? '--'} {'\u6761\u6570\u636E'}</span>
+        {health?.last_collect && <span>{'\u4E0A\u6B21\u540C\u6B65'} {health.last_collect.slice(11, 19)}</span>}
         <span className="ml-auto">127.0.0.1:3001</span>
       </div>
     </div>
