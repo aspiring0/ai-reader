@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="100%" height="auto" role="img" aria-labelledby="archTitle archDesc">
+  <title id="archTitle">AI Radar Architecture</title>
+  <desc id="archDesc">Data pipeline: sources feed collectors, which pass items through a scorer, interpreter, and into the web feed.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#e0af68"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="340" fill="#0d0f17"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,sans-serif" text-rendering="geometricPrecision">
+    <rect x="40" y="50" width="170" height="240" rx="12" fill="#161a24" stroke="#242938"/>
+    <text x="125" y="82" text-anchor="middle" font-size="13" font-weight="700" fill="#7d8aa8" letter-spacing="2">SOURCES</text>
+    <g transform="translate(55,104)">
+      <rect width="140" height="52" rx="8" fill="#1d2230" stroke="#9ece6a" stroke-width="1"/>
+      <circle cx="22" cy="26" r="6" fill="#9ece6a"/>
+      <text x="40" y="23" font-size="14" font-weight="600" fill="#e2e8f0">GitHub</text>
+      <text x="40" y="39" font-size="11" fill="#7d8aa8">repos and topics</text>
+    </g>
+    <g transform="translate(55,166)">
+      <rect width="140" height="52" rx="8" fill="#1d2230" stroke="#7aa2f7" stroke-width="1"/>
+      <circle cx="22" cy="26" r="6" fill="#7aa2f7"/>
+      <text x="40" y="23" font-size="14" font-weight="600" fill="#e2e8f0">Hacker News</text>
+      <text x="40" y="39" font-size="11" fill="#7d8aa8">trending stories</text>
+    </g>
+    <g transform="translate(55,228)">
+      <rect width="140" height="52" rx="8" fill="#1d2230" stroke="#bb9af7" stroke-width="1"/>
+      <circle cx="22" cy="26" r="6" fill="#bb9af7"/>
+      <text x="40" y="23" font-size="14" font-weight="600" fill="#e2e8f0">RSS</text>
+      <text x="40" y="39" font-size="11" fill="#7d8aa8">blogs and feeds</text>
+    </g>
+    <line x1="215" y1="170" x2="285" y2="170" stroke="#363c52" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="290" y="110" width="150" height="120" rx="12" fill="#161a24" stroke="#363c52"/>
+    <text x="365" y="142" text-anchor="middle" font-size="13" font-weight="700" fill="#7d8aa8" letter-spacing="2">COLLECTORS</text>
+    <text x="365" y="172" text-anchor="middle" font-size="12" fill="#b8c2d8">poll every 6 h</text>
+    <text x="365" y="192" text-anchor="middle" font-size="12" fill="#b8c2d8">dedup and persist</text>
+    <text x="365" y="212" text-anchor="middle" font-size="12" fill="#b8c2d8">node:sqlite</text>
+    <line x1="445" y1="170" x2="515" y2="170" stroke="#363c52" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="520" y="70" width="160" height="200" rx="12" fill="#161a24" stroke="#e0af68" stroke-width="1"/>
+    <text x="600" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#e0af68" letter-spacing="2">SCORER</text>
+    <g font-size="11" fill="#b8c2d8">
+      <text x="600" y="132" text-anchor="middle">5-dimension weighted</text>
+      <text x="540" y="160">star velocity</text>
+      <text x="640" y="160" text-anchor="end" fill="#9ece6a">35%</text>
+      <text x="540" y="180">activity decay</text>
+      <text x="640" y="180" text-anchor="end" fill="#9ece6a">25%</text>
+      <text x="540" y="200">fork ratio</text>
+      <text x="640" y="200" text-anchor="end" fill="#9ece6a">15%</text>
+      <text x="540" y="220">author rep</text>
+      <text x="640" y="220" text-anchor="end" fill="#9ece6a">15%</text>
+      <text x="540" y="240">issue health</text>
+      <text x="640" y="240" text-anchor="end" fill="#9ece6a">10%</text>
+    </g>
+    <line x1="685" y1="170" x2="755" y2="170" stroke="#363c52" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="760" y="110" width="150" height="120" rx="12" fill="#161a24" stroke="#7dcfff"/>
+    <text x="835" y="142" text-anchor="middle" font-size="13" font-weight="700" fill="#7dcfff" letter-spacing="2">INTERPRETER</text>
+    <text x="835" y="172" text-anchor="middle" font-size="12" fill="#b8c2d8">Zhipu GLM-4-plus</text>
+    <text x="835" y="192" text-anchor="middle" font-size="12" fill="#b8c2d8">CN translation</text>
+    <text x="835" y="212" text-anchor="middle" font-size="12" fill="#b8c2d8">structured summary</text>
+    <line x1="915" y1="170" x2="985" y2="170" stroke="#363c52" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="990" y="90" width="160" height="160" rx="12" fill="#161a24" stroke="#e0af68" stroke-width="1"/>
+    <text x="1070" y="122" text-anchor="middle" font-size="13" font-weight="700" fill="#e0af68" letter-spacing="2">WEB FEED</text>
+    <text x="1070" y="152" text-anchor="middle" font-size="12" fill="#b8c2d8">React + Vite</text>
+    <text x="1070" y="172" text-anchor="middle" font-size="12" fill="#b8c2d8">score and hot sort</text>
+    <text x="1070" y="192" text-anchor="middle" font-size="12" fill="#b8c2d8">trending section</text>
+    <text x="1070" y="212" text-anchor="middle" font-size="12" fill="#9ece6a">one-click install</text>
+  </g>
+  <rect x="40" y="300" width="1110" height="28" rx="6" fill="#161a24" stroke="#242938"/>
+  <text x="600" y="319" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,sans-serif" font-size="12" fill="#7d8aa8">Fastify :3001  .  node:sqlite  .  Zhipu GLM  .  Codex skill adapter</text>
+</svg>
