@@ -10,8 +10,10 @@ export async function feedRoutes(app: FastifyInstance): Promise<void> {
       lang?: string;
       source?: string;
       sort?: string;
-      score_min?: string;
-      q?: string;
+     score_min?: string;
+      score_max?: string;
+      since?: string;
+     q?: string;
       page?: string;
       limit?: string;
     };
@@ -21,8 +23,10 @@ export async function feedRoutes(app: FastifyInstance): Promise<void> {
       lang: req.query.lang,
       source: req.query.source as FeedQuery['source'],
       sort: req.query.sort as FeedQuery['sort'],
-      score_min: req.query.score_min ? Number(req.query.score_min) : undefined,
-      q: req.query.q,
+     score_min: req.query.score_min ? Number(req.query.score_min) : undefined,
+      score_max: req.query.score_max ? Number(req.query.score_max) : undefined,
+      since: req.query.since,
+     q: req.query.q,
       page: req.query.page ? Number(req.query.page) : 1,
       limit: req.query.limit ? Number(req.query.limit) : 50,
     };

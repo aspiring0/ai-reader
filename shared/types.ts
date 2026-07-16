@@ -61,8 +61,10 @@ export interface FeedQuery {
   lang?: string | 'all';
   source?: SourceType | 'all';
   sort?: 'score' | 'hot' | 'recent';
-  score_min?: number;
-  q?: string;
+ score_min?: number;
+  score_max?: number;      // upper bound for score filtering
+  since?: string;           // ISO timestamp - only show items updated after this
+ q?: string;
   page?: number;
   limit?: number;
 }

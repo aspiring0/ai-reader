@@ -1,6 +1,7 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { FeedParams } from '../api/client';
 import type { Item } from '@shared/types';
 import { ItemModal } from '../components/ItemModal';
 import { getGithubMeta } from '../lib/rawData';
@@ -27,7 +28,7 @@ const TAG_COLORS = [
   { bg: 'rgba(158,206,106,.15)', fg: '#9ece6a' },
 ];
 
-function Card({ item, onClick }: { item: Item; onClick: () => void }) {
+function Card({ item, onClick, selected }: { item: Item; onClick: () => void; selected?: boolean }) {
   const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
 
@@ -41,7 +42,7 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
 
   return (
     <div
-      className="group relative rounded-lg border border-border bg-surface p-3.5 cursor-pointer transition-all hover:border-border-lt hover:bg-surface2"
+      className={'group relative rounded-lg border border-border bg-surface p-3.5 cursor-pointer transition-all hover:border-border-lt hover:bg-surface2' + (selected ? ' ring-1 ring-amber' : '')}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -69,7 +70,7 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
           )}
         </div>
         {isGithub && (
-          <span className="font-mono text-lg font-bold leading-none flex-shrink-0" style={{ color: scoreColor(item.score) }}>
+          <span className="font-mono text-2xl font-bold leading-none flex-shrink-0" style={{ color: scoreColor(item.score) }}>
             {item.score}
           </span>
         )}
@@ -79,14 +80,14 @@ function Card({ item, onClick }: { item: Item; onClick: () => void }) {
 
       <div className="mb-2">
         {item.summary && (
-          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-4">{item.summary}</div>
+          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2">{item.summary}</div>
         )}
         {isGithub && ghDescription && ghDescription !== item.summary && (
           <div className="text-[10px] text-muted leading-relaxed line-clamp-1 mt-0.5 italic">{ghDescription}</div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 text-[10px] text-muted font-mono">
+      <div className="flex items-center gap-2 text-[10px] text-muted font-mono">
         {isGithub && <span className="flex items-center gap-0.5"><span style={{ color: '#e0af68' }}>{'\u2605'}</span> {fmtN(item.stars)}</span>}
         {isGithub && ghLanguage && <span>{ghLanguage}</span>}
         {isNews && item.source_type === 'hackernews' && <span>{fmtN(item.stars)} {'\u5206'}</span>}
@@ -169,13 +170,25 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [scoreMin, setScoreMin] = useState(0);
+  const [timeWindow, setTimeWindow] = useState('all');
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const qc = useQueryClient();
 
-  const feedParams = {
+  const since = useMemo(() => {
+    if (timeWindow === 'all') return undefined;
+    const hours = timeWindow === '24h' ? 24 : timeWindow === '7d' ? 168 : 720;
+    return new Date(Date.now() - hours * 3600_000).toISOString();
+  }, [timeWindow]);
+
+  const feedParams: FeedParams = {
     source: sourceFilter === 'all' ? undefined : sourceFilter,
     type: tab === 'skill' && typeFilter !== 'all' ? typeFilter : undefined,
     sort,
     q: search || undefined,
+    score_min: scoreMin > 0 ? scoreMin : undefined,
+    since,
     limit: 200,
   };
 
@@ -210,7 +223,60 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
   const showItems = filteredItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  React.useEffect(() => { setPage(1); }, [tab, sourceFilter, typeFilter, effectiveSort, search]);
+  const topTopics = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of allItems) {
+      if (item.source_type !== 'github') continue;
+      const topics = getGithubMeta(item.raw_data)?.topics;
+      if (!topics) continue;
+      for (const t of topics) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t);
+  }, [allItems]);
+
+  const displayItems = activeTopic
+    ? showItems.filter(item => getGithubMeta(item.raw_data)?.topics?.includes(activeTopic) ?? false)
+    : showItems;
+
+  React.useEffect(() => {
+    setPage(1);
+    setSelectedCardIndex(-1);
+  }, [tab, sourceFilter, typeFilter, effectiveSort, search, scoreMin, timeWindow]);
+
+  React.useEffect(() => {
+    setSelectedCardIndex(-1);
+  }, [page]);
+
+  React.useEffect(() => {
+    if (tab !== 'skill') setActiveTopic(null);
+  }, [tab]);
+
+  React.useEffect(() => {
+    if (activeTopic && !topTopics.includes(activeTopic)) setActiveTopic(null);
+  }, [topTopics, activeTopic]);
+
+  const navState = React.useRef({ items: displayItems, idx: selectedCardIndex, open: !!selectedId });
+  navState.current = { items: displayItems, idx: selectedCardIndex, open: !!selectedId };
+
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName ?? '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      const { items, idx, open } = navState.current;
+      if (open || items.length === 0) return;
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedCardIndex(p => (p < 0 ? 0 : (p + 1) % items.length));
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedCardIndex(p => (p < 0 ? items.length - 1 : (p - 1 + items.length) % items.length));
+      } else if (e.key === 'Enter') {
+        if (idx >= 0 && idx < items.length) setSelectedId(items[idx].id);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const showTrending = tab === 'skill' && page === 1 && !search && sourceFilter === 'all' && typeFilter === 'all';
 
@@ -222,7 +288,7 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
           <div className="rounded-lg border border-border bg-surface2/50 p-3">
             <div className="flex items-center gap-2 mb-2.5">
               <span className="font-mono text-[10px] uppercase tracking-wide text-amber font-bold">{'\u672C\u5468\u70ED\u95E8'}</span>
-              <span className="text-[10px] text-muted">{'\u6309\u661F\u6807\u589e\u957F\u6392\u5e8f'}</span>
+              <span className="text-[10px] text-muted">{'\u6309\u661F\u6807\u589E\u957F\u6392\u5e8F'}</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {trendingItems.map(item => (
@@ -266,25 +332,51 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
             ))}
           </div>
         )}
+        <div className="flex gap-px bg-surface border border-border rounded-md p-0.5">
+          {[['24h', '24h'], ['7d', '7d'], ['30d', '30d'], ['all', 'All']].map(([val, label]) => (
+            <button key={val} onClick={() => setTimeWindow(val)}
+              className={'font-mono text-[11px] px-2 py-1 rounded ' + (timeWindow === val ? 'bg-amber text-bg' : 'text-muted hover:text-fg-dim')}
+            >{label}</button>
+          ))}
+        </div>
         <select value={effectiveSort} onChange={e => setSort(e.target.value)}
           className="bg-surface border border-border rounded-md px-2 py-1 text-[11px] text-fg-dim outline-none">
           <option value="score">{'\u6309\u5206\u6570'}</option>
           <option value="hot">{'\u6309 Star'}</option>
           <option value="recent">{'\u6309\u65F6\u95F4'}</option>
         </select>
+        <div className="flex items-center gap-1.5 bg-surface border border-border rounded-md px-2 py-0.5">
+          <span className="font-mono text-[10px] text-muted">{'\u2265'}</span>
+          <input type="range" min={0} max={100} step={5} value={scoreMin}
+            onChange={e => setScoreMin(Number(e.target.value))}
+            className="w-16 accent-amber" />
+          <span className="font-mono text-[11px] text-amber w-6 text-right">{scoreMin}</span>
+        </div>
       </div>
+
+      {/* Topic chips */}
+      {tab === 'skill' && topTopics.length > 0 && (
+        <div className="flex items-center gap-1.5 px-3.5 pt-3 flex-wrap">
+          <span className="font-mono text-[10px] text-muted">{'\u8BDD\u9898'}</span>
+          {topTopics.map(t => (
+            <button key={t} onClick={() => setActiveTopic(activeTopic === t ? null : t)}
+              className={'px-2 py-0.5 rounded-full text-[10px] font-mono ' + (activeTopic === t ? 'bg-amber text-bg' : 'bg-surface border border-border text-muted hover:text-fg-dim')}
+            >{t}</button>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-20 text-muted text-xs">{'\u52A0\u8F7D\u4E2D'}...</div>
-      ) : showItems.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <div className="text-center py-20 text-muted text-xs">
           {tab === 'fav' ? '\u8FD8\u6CA1\u6709\u6536\u85CF' : '\u6CA1\u6709\u5339\u914D\u7684\u7ED3\u679C'}
         </div>
       ) : (
         <>
           <div className="grid gap-2.5 p-3.5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-            {showItems.map(item => (
-              <Card key={item.id} item={item} onClick={() => setSelectedId(item.id)} />
+            {displayItems.map((item, i) => (
+              <Card key={item.id} item={item} selected={i === selectedCardIndex} onClick={() => setSelectedId(item.id)} />
             ))}
           </div>
           <Pagination page={page} totalPages={totalPages} onPage={setPage} />

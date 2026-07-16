@@ -94,14 +94,22 @@ export function queryFeed(query: FeedQuery): FeedResult {
     conditions.push('source_type = @source');
     params.source = query.source;
   }
-  if (query.score_min !== undefined && query.score_min > 0) {
-    conditions.push('score >= @score_min');
-    params.score_min = query.score_min;
+ if (query.score_min !== undefined && query.score_min > 0) {
+   conditions.push('score >= @score_min');
+   params.score_min = query.score_min;
+ }
+  if (query.score_max !== undefined && query.score_max > 0) {
+    conditions.push('score <= @score_max');
+    params.score_max = query.score_max;
   }
-  if (query.q) {
-    conditions.push('(title LIKE @q OR summary LIKE @q)');
-    params.q = `%${query.q}%`;
+  if (query.since) {
+    conditions.push('updated_at >= @since');
+    params.since = query.since;
   }
+ if (query.q) {
+    conditions.push('(title LIKE @q OR title_zh LIKE @q OR summary LIKE @q)');
+   params.q = `%${query.q}%`;
+ }
 
   const where = conditions.join(' AND ');
   const sortCol = query.sort === 'hot' ? 'stars' : query.sort === 'recent' ? 'updated_at' : 'score';

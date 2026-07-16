@@ -90,11 +90,40 @@ describe('API Routes', () => {
       const newer = new Date('2026-06-01').toISOString();
       upsertItem(makeItem({ id: 'old', source_id: 'o/r1', updated_at: old, title: 'Old' }));
       upsertItem(makeItem({ id: 'new', source_id: 'o/r2', updated_at: newer, title: 'New' }));
-      const resp = await app.inject({ method: 'GET', url: '/api/feed?sort=recent' });
+     const resp = await app.inject({ method: 'GET', url: '/api/feed?sort=recent' });
+     const body = resp.json();
+     expect(body.data.items[0].title).toBe('New');
+   });
+
+    it('should filter by score_max', async () => {
+      upsertItem(makeItem({ id: 'a', source_id: 'a/r', score: 10 }));
+      upsertItem(makeItem({ id: 'b', source_id: 'b/r', score: 50 }));
+      const resp = await app.inject({ method: 'GET', url: '/api/feed?score_max=30' });
       const body = resp.json();
-      expect(body.data.items[0].title).toBe('New');
+      expect(body.data.items).toHaveLength(1);
+      expect(body.data.items[0].score).toBe(10);
     });
-  });
+
+    it('should filter by since', async () => {
+      const old = new Date('2025-01-01').toISOString();
+      const recent = new Date('2026-06-01').toISOString();
+      upsertItem(makeItem({ id: 'old', source_id: 'o/r1', updated_at: old, title: 'Old' }));
+      upsertItem(makeItem({ id: 'recent', source_id: 'o/r2', updated_at: recent, title: 'Recent' }));
+      const resp = await app.inject({ method: 'GET', url: '/api/feed?since=' + encodeURIComponent(recent) });
+      const body = resp.json();
+      expect(body.data.items).toHaveLength(1);
+      expect(body.data.items[0].title).toBe('Recent');
+    });
+
+    it('should search by title_zh', async () => {
+      upsertItem(makeItem({ id: 'a', source_id: 'a/r', title: 'Some Project', title_zh: '\u673a\u5668\u4eba' }));
+      upsertItem(makeItem({ id: 'b', source_id: 'b/r', title: 'Other', title_zh: null }));
+      const resp = await app.inject({ method: 'GET', url: '/api/feed?q=' + encodeURIComponent('\u673a\u5668') });
+      const body = resp.json();
+      expect(body.data.items).toHaveLength(1);
+      expect(body.data.items[0].title).toBe('Some Project');
+    });
+ });
 
   describe('GET /api/feed/:id', () => {
     it('should return item by id', async () => {
