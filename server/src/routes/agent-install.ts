@@ -34,6 +34,7 @@ export async function agentInstallRoutes(app: FastifyInstance): Promise<void> {
           prerequisites: env.prerequisites,
           all_met: env.all_met,
           blocked_by: env.blocked_by,
+          is_skill: env.is_skill,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

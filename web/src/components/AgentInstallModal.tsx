@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import { InstallLog, type LogLine } from './InstallLog';
 
@@ -11,6 +11,7 @@ interface Prerequisite {
 }
 
 interface EnvCheckResult {
+  is_skill?: boolean;
   detected_type: string;
   prerequisites: Prerequisite[];
   all_met: boolean;

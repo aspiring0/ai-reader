@@ -81,7 +81,7 @@ export const api = {
  }>('/stats'),
   agent: {
     checkEnv: (itemId: string) =>
-      request<{ detected_type: string; prerequisites: Array<{ name: string; installed: boolean; version: string | null; install_url: string | null; install_hint: string | null }>; all_met: boolean; blocked_by: string[] }>('/agent/check-env', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
+      request<{ detected_type: string; prerequisites: Array<{ name: string; installed: boolean; version: string | null; install_url: string | null; install_hint: string | null }>; all_met: boolean; blocked_by: string[]; is_skill: boolean }>('/agent/check-env', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
     defaultPath: () =>
       request<{ path: string; drives: string[] }>('/agent/default-path'),
     // Install returns a text/event-stream. We handle it with EventSource-like parsing.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api/client';
 import { FeedPage } from './pages/FeedPage';
@@ -46,9 +46,9 @@ export default function App() {
       </nav>
 
       <div className="flex-1">
-        {page === 'skill' && <FeedPage mode="skill" />}
-        {page === 'news' && <FeedPage mode="news" />}
-        {page === 'fav' && <FeedPage mode="fav" />}
+        <div style={{ display: page === 'skill' ? 'block' : 'none' }}><FeedPage mode="skill" /></div>
+        <div style={{ display: page === 'news' ? 'block' : 'none' }}><FeedPage mode="news" /></div>
+        <div style={{ display: page === 'fav' ? 'block' : 'none' }}><FeedPage mode="fav" /></div>
         {page === 'trends' && <TrendsPage />}
         {page === 'settings' && <SettingsPage />}
         {page === 'system' && <SystemPage />}

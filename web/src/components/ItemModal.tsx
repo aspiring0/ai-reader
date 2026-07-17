@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import type { Item } from '@shared/types';
+import { api } from '../api/client';
 import { RadarChart, ScoreBars } from './RadarChart';
 import { InstallModal } from './InstallModal';
 import { AgentInstallModal } from './AgentInstallModal';
@@ -39,15 +40,50 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface DetectionInfo {
+  is_skill: boolean;
+  detected_type: string;
+}
+
 export function ItemModal({ item, onClose, onFav }: {
   item: Item;
   onClose: () => void;
   onFav?: (id: string) => void;
 }) {
- const [showInstall, setShowInstall] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const [showAgentInstall, setShowAgentInstall] = useState(false);
- const isGithub = item.source_type === 'github';
+  const [detection, setDetection] = useState<DetectionInfo | null>(null);
+  const [detecting, setDetecting] = useState(false);
+
+  const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
+
+  // Async: detect project type on modal open for GitHub items.
+  // This determines which install button(s) to show:
+  //   - is_skill=true  -> show "Install to Codex" (SKILL.md present)
+  //   - detected_type != 'skill' -> show "Install Locally" (has a build system)
+  //   - both true -> show both (repo has SKILL.md AND a build system)
+  useEffect(() => {
+    if (!isGithub) return;
+    let cancelled = false;
+    setDetecting(true);
+    api.agent
+      .checkEnv(item.id)
+      .then((res) => {
+        if (!cancelled) setDetection({ is_skill: res.is_skill, detected_type: res.detected_type });
+      })
+      .catch(() => {
+        // Detection failed: default to showing both buttons as fallback
+        if (!cancelled) setDetection({ is_skill: true, detected_type: 'manual' });
+      })
+      .finally(() => {
+        if (!cancelled) setDetecting(false);
+      });
+    return () => { cancelled = true; };
+  }, [item.id, isGithub]);
+
+  const showCodexInstall = isGithub && (detection?.is_skill ?? false);
+  const showLocalInstall = isGithub && detection !== null && detection.detected_type !== 'skill';
 
   const ghMeta = isGithub ? getGithubMeta(item.raw_data) : null;
   const hnMeta = item.source_type === 'hackernews' ? getHNMeta(item.raw_data) : null;
@@ -176,8 +212,8 @@ export function ItemModal({ item, onClose, onFav }: {
             </div>
           )}
 
-          {/* Install command for GitHub skills */}
-          {isGithub && (
+          {/* Install command: only show for skills (repos with SKILL.md) */}
+          {showCodexInstall && (
             <div>
               <SectionLabel>{'\u5B89\u88C5\u547D\u4EE4'}</SectionLabel>
               <pre className="bg-black/40 border border-border rounded-md px-3 py-2 text-xs font-mono text-green overflow-x-auto">codex skill install github:{item.source_id}</pre>
@@ -201,21 +237,26 @@ export function ItemModal({ item, onClose, onFav }: {
               {'\u6253\u5F00\u94FE\u63A5'}
             </a>
           )}
-          {isGithub && (
+
+          {/* Install buttons: shown based on detected project type */}
+          {isGithub && detecting && (
+            <span className="px-3.5 py-1.5 text-[11px] text-muted font-mono animate-pulse">{'\u68C0\u6D4B\u4E2D...'}</span>
+          )}
+          {showCodexInstall && (
             <button className="px-3.5 py-1.5 rounded-md text-xs bg-amber border border-amber text-bg font-semibold hover:bg-amber-br" onClick={() => setShowInstall(true)}>
               {'\u5B89\u88C5\u5230 Codex'}
             </button>
           )}
-          {isGithub && (
-            <button className="px-3.5 py-1.5 rounded-md text-xs border border-border text-fg-dim hover:border-border-lt hover:text-fg" onClick={() => setShowAgentInstall(true)}>
+          {showLocalInstall && (
+            <button className={showCodexInstall ? 'px-3.5 py-1.5 rounded-md text-xs border border-border text-fg-dim hover:border-border-lt hover:text-fg' : 'px-3.5 py-1.5 rounded-md text-xs bg-amber border border-amber text-bg font-semibold hover:bg-amber-br'} onClick={() => setShowAgentInstall(true)}>
               {'\u672C\u5730\u5B89\u88C5'}
             </button>
           )}
         </div>
       </div>
-     {showInstall && (
-       <InstallModal itemId={item.id} repoUrl={item.url} onClose={() => setShowInstall(false)} />
-     )}
+      {showInstall && (
+        <InstallModal itemId={item.id} repoUrl={item.url} onClose={() => setShowInstall(false)} />
+      )}
       {showAgentInstall && (
         <AgentInstallModal itemId={item.id} repoName={item.source_id} repoUrl={item.url} onClose={() => setShowAgentInstall(false)} />
       )}

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 
 const levelColor: Record<string, string> = { info: '#7aa2f7', warn: '#e0af68', error: '#f7768e' };
@@ -28,6 +28,7 @@ export function SystemPage() {
   const agentUninstallMut = useMutation({
     mutationFn: (name: string) => api.agent.remove(name),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['agent-status'] }); },
+    onError: () => { qc.invalidateQueries({ queryKey: ['agent-status'] }); },
   });
 
 return (

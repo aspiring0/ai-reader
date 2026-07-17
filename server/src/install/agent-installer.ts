@@ -39,6 +39,7 @@ export interface EnvCheckResponse {
   all_met: boolean;
   blocked_by: string[];
   detection: DetectionResult;
+  is_skill: boolean;
 }
 
 // ---- Env / path helpers ----
@@ -57,6 +58,7 @@ export async function checkItemEnv(itemId: string): Promise<EnvCheckResponse> {
   const detection = detectAgentType(files.map((f) => f.path), repoName);
 
   const env = checkPrerequisites(detection.type);
+  const is_skill = files.some((f) => f.path.toLowerCase().endsWith('skill.md'));
 
   return {
     detected_type: detection.type,
@@ -64,6 +66,7 @@ export async function checkItemEnv(itemId: string): Promise<EnvCheckResponse> {
     all_met: env.allMet,
     blocked_by: env.blockedBy,
     detection,
+    is_skill,
   };
 }
 
