@@ -2,6 +2,7 @@
 import type { Item } from '@shared/types';
 import { RadarChart, ScoreBars } from './RadarChart';
 import { InstallModal } from './InstallModal';
+import { AgentInstallModal } from './AgentInstallModal';
 import { RichSummary } from './RichSummary';
 import { getGithubMeta, getHNMeta, getRSSMeta } from '../lib/rawData';
 
@@ -43,8 +44,9 @@ export function ItemModal({ item, onClose, onFav }: {
   onClose: () => void;
   onFav?: (id: string) => void;
 }) {
-  const [showInstall, setShowInstall] = useState(false);
-  const isGithub = item.source_type === 'github';
+ const [showInstall, setShowInstall] = useState(false);
+  const [showAgentInstall, setShowAgentInstall] = useState(false);
+ const isGithub = item.source_type === 'github';
   const isNews = item.source_type === 'rss' || item.source_type === 'hackernews';
 
   const ghMeta = isGithub ? getGithubMeta(item.raw_data) : null;
@@ -204,10 +206,18 @@ export function ItemModal({ item, onClose, onFav }: {
               {'\u5B89\u88C5\u5230 Codex'}
             </button>
           )}
+          {isGithub && (
+            <button className="px-3.5 py-1.5 rounded-md text-xs border border-border text-fg-dim hover:border-border-lt hover:text-fg" onClick={() => setShowAgentInstall(true)}>
+              {'\u672C\u5730\u5B89\u88C5'}
+            </button>
+          )}
         </div>
       </div>
-      {showInstall && (
-        <InstallModal itemId={item.id} repoUrl={item.url} onClose={() => setShowInstall(false)} />
+     {showInstall && (
+       <InstallModal itemId={item.id} repoUrl={item.url} onClose={() => setShowInstall(false)} />
+     )}
+      {showAgentInstall && (
+        <AgentInstallModal itemId={item.id} repoName={item.source_id} repoUrl={item.url} onClose={() => setShowAgentInstall(false)} />
       )}
     </div>
   );

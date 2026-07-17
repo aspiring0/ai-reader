@@ -8,6 +8,7 @@ import type {
   LogQuery,
   AuthorCache,
   ScoreDetail,
+  InstalledAgent,
 } from '@shared/types';
 
 // ── Items ──────────────────────────────────────────────
@@ -604,5 +605,65 @@ export function getInstalledSkill(skillName: string): InstalledSkill | null {
   const row = db.prepare(
     'SELECT * FROM installed_skills WHERE skill_name = ?',
   ).get(skillName) as InstalledSkillRow | undefined;
+  return row ?? null;
+}
+
+// ---- Installed Agents (V2.4) ----
+
+export interface InstalledAgentRow {
+  id: number;
+  item_id: string;
+  agent_name: string;
+  agent_type: string;
+  install_path: string;
+  run_command: string | null;
+  binary_path: string | null;
+  docker_image: string | null;
+  installed_at: string;
+}
+
+/** Record a freshly installed agent. */
+export function insertInstalledAgent(data: {
+  item_id: string;
+  agent_name: string;
+  agent_type: string;
+  install_path: string;
+  run_command?: string | null;
+  binary_path?: string | null;
+  docker_image?: string | null;
+}): void {
+  const db = openDb();
+  db.prepare(
+    `INSERT INTO installed_agents (item_id, agent_name, agent_type, install_path, run_command, binary_path, docker_image)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(agent_name) DO UPDATE SET
+       item_id = excluded.item_id,
+       agent_type = excluded.agent_type,
+       install_path = excluded.install_path,
+       run_command = excluded.run_command,
+       binary_path = excluded.binary_path,
+       docker_image = excluded.docker_image,
+       installed_at = datetime('now')`,
+  ).run(data.item_id, data.agent_name, data.agent_type, data.install_path, data.run_command ?? null, data.binary_path ?? null, data.docker_image ?? null);
+}
+
+/** List all installed agents, most recent first. */
+export function queryInstalledAgents(): InstalledAgent[] {
+  const db = openDb();
+  const rows = db.prepare('SELECT * FROM installed_agents ORDER BY installed_at DESC').all() as unknown as InstalledAgentRow[];
+  return rows;
+}
+
+/** Remove an installed agent record by name. */
+export function deleteInstalledAgent(agentName: string): boolean {
+  const db = openDb();
+  const result = db.prepare('DELETE FROM installed_agents WHERE agent_name = ?').run(agentName);
+  return result.changes > 0;
+}
+
+/** Look up an installed agent by name. */
+export function getInstalledAgent(agentName: string): InstalledAgent | null {
+  const db = openDb();
+  const row = db.prepare('SELECT * FROM installed_agents WHERE agent_name = ?').get(agentName) as InstalledAgentRow | undefined;
   return row ?? null;
 }

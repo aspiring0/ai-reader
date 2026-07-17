@@ -28,6 +28,21 @@ const migrations: Migration[] = [
   UNIQUE(skill_name)
 );`,
   },
+  {
+    version: 4,
+    sql: `CREATE TABLE IF NOT EXISTS installed_agents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  agent_type TEXT NOT NULL,
+  install_path TEXT NOT NULL,
+  run_command TEXT,
+  binary_path TEXT,
+  docker_image TEXT,
+  installed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(agent_name)
+);`,
+  },
 ];
 
 /**

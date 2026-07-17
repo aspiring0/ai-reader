@@ -20,12 +20,17 @@ export function SystemPage() {
    onSuccess: () => { qc.invalidateQueries(); },
  });
   const { data: installStatus } = useQuery({ queryKey: ['install-status'], queryFn: () => api.install.status() });
-  const uninstallMut = useMutation({
-    mutationFn: (name: string) => api.install.remove(name),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['install-status'] }); },
+ const uninstallMut = useMutation({
+   mutationFn: (name: string) => api.install.remove(name),
+   onSuccess: () => { qc.invalidateQueries({ queryKey: ['install-status'] }); },
+ });
+  const { data: agentStatus } = useQuery({ queryKey: ['agent-status'], queryFn: () => api.agent.status() });
+  const agentUninstallMut = useMutation({
+    mutationFn: (name: string) => api.agent.remove(name),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['agent-status'] }); },
   });
 
- return (
+return (
     <div className="p-4 max-w-2xl flex flex-col gap-5">
       <div className="flex items-center gap-4">
         <button
@@ -103,6 +108,36 @@ export function SystemPage() {
                     className="text-[10px] text-[#f7768e] hover:text-[#ff9bad] border border-[#f7768e]/30 hover:border-[#f7768e]/60 rounded px-1.5 py-0.5"
                     onClick={() => uninstallMut.mutate(s.skill_name)}
                     disabled={uninstallMut.isPending}
+                  >{'\u5378\u8f7d'}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="font-mono text-[10px] text-muted uppercase tracking-wide mb-3">{'\u5df2\u5b89\u88c5 Agent'}</div>
+        {(agentStatus?.installed ?? []).length === 0 ? (
+          <div className="text-[11px] text-muted">{'\u8fd8\u6ca1\u6709\u5b89\u88c5\u7684 Agent'}</div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {(agentStatus?.installed ?? []).map((a) => (
+              <div key={a.agent_name} className="flex items-center justify-between gap-2 bg-surface border border-border rounded-md px-3 py-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] text-fg font-medium truncate">{a.agent_name}</span>
+                    <span className="text-[9px] font-mono text-blue px-1.5 py-0.5 rounded bg-black/30">{a.agent_type}</span>
+                  </div>
+                  <div className="text-[10px] text-muted font-mono truncate">{a.install_path}</div>
+                  {a.run_command && <div className="text-[10px] text-green font-mono truncate">$ {a.run_command}</div>}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[10px] text-muted">{a.installed_at?.slice(0, 10)}</span>
+                  <button
+                    className="text-[10px] text-[#f7768e] hover:text-[#ff9bad] border border-[#f7768e]/30 hover:border-[#f7768e]/60 rounded px-1.5 py-0.5"
+                    onClick={() => agentUninstallMut.mutate(a.agent_name)}
+                    disabled={agentUninstallMut.isPending}
                   >{'\u5378\u8f7d'}</button>
                 </div>
               </div>

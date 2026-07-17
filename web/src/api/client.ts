@@ -78,5 +78,25 @@ export const api = {
     score_distribution: { bucket: string; count: number }[];
     top_topics: { topic: string; count: number }[];
     top_languages: { lang: string; count: number }[];
-  }>('/stats'),
+ }>('/stats'),
+  agent: {
+    checkEnv: (itemId: string) =>
+      request<{ detected_type: string; prerequisites: Array<{ name: string; installed: boolean; version: string | null; install_url: string | null; install_hint: string | null }>; all_met: boolean; blocked_by: string[] }>('/agent/check-env', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
+    defaultPath: () =>
+      request<{ path: string; drives: string[] }>('/agent/default-path'),
+    // Install returns a text/event-stream. We handle it with EventSource-like parsing.
+    // This method returns a ReadableStream reader for SSE consumption.
+    install: async (itemId: string, installPath: string) => {
+      const res = await fetch('/api/agent/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, install_path: installPath }),
+      });
+     return res.body;
+   },
+    status: () =>
+      request<{ installed: Array<{ id: number; agent_name: string; agent_type: string; install_path: string; run_command: string | null; binary_path: string | null; docker_image: string | null; installed_at: string }> }>('/agent/status'),
+    remove: (agentName: string) =>
+      request<{ deleted: string }>('/agent/' + encodeURIComponent(agentName), { method: 'DELETE' }),
+ },
 };

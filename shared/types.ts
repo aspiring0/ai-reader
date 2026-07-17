@@ -190,3 +190,16 @@ export interface CollectResult {
   fetched: number;
   errors: string[];
 }
+
+/** An agent installed locally (not a Codex skill) */
+export interface InstalledAgent {
+  id: number;
+  item_id: string;
+  agent_name: string;
+  agent_type: string;      // 'docker' | 'go' | 'npm' | 'pip' | 'manual'
+  install_path: string;
+  run_command: string | null;
+  binary_path: string | null;
+  docker_image: string | null;
+  installed_at: string;
+}
