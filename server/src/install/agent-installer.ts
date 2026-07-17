@@ -17,7 +17,7 @@ import { detectAgentType, type DetectionResult } from './agent-detector.js';
 import { checkPrerequisites, getAvailableDrives, getDefaultAgentsPath } from './env-checker.js';
 import type { Prerequisite } from './env-checker.js';
 import { getSettings } from '../lib/config.js';
-import { isLlmEndpoint } from '../lib/http.js';
+import { llmChat } from '../lib/llm-client.js';
 import { logger } from '../lib/logger.js';
 
 // ---- Event types ----
@@ -147,10 +147,6 @@ async function diagnoseError(command: string, stderr: string): Promise<string | 
   const settings = getSettings();
   if (!settings.llm_api_key?.trim()) return null;
 
-  const baseUrl = settings.llm_base_url.replace(/\/+$/, '');
-  const endpoint = baseUrl + '/chat/completions';
-  if (!isLlmEndpoint(endpoint)) return null;
-
   const prompt = [
     'You are a DevOps assistant. An installation command failed during local setup.',
     'Analyze the error and suggest a concrete fix.',
@@ -164,27 +160,16 @@ async function diagnoseError(command: string, stderr: string): Promise<string | 
   ].join('\n');
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + settings.llm_api_key,
-      },
-      body: JSON.stringify({
-        model: settings.llm_model,
+    const result = await llmChat(
+      {
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        max_tokens: 300,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return data.choices?.[0]?.message?.content ?? null;
+        maxTokens: 300,
+        timeoutMs: 15000,
+        maxRetries: 1,
+      },
+      settings,
+    );
+    return result.content;
   } catch {
     return null;
   }
@@ -197,6 +182,12 @@ export interface InstallOptions {
   installPath: string;
   emit: EmitFn;
 }
+export interface InstallOptions {
+  itemId: string;
+  installPath: string;
+  emit: EmitFn;
+}
+
 
 /**
  * Full guided install flow:

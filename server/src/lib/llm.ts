@@ -1,25 +1,14 @@
-﻿ import { isLlmEndpoint } from './http.js';
- import type { Settings } from '@shared/types';
- 
- export type LlmErrorCategory = 'auth' | 'rate_limit' | 'timeout' | 'parse' | 'network' | 'unknown';
- 
- export class LlmError extends Error {
-   readonly category: LlmErrorCategory;
-   readonly statusCode?: number;
- 
-   constructor(category: LlmErrorCategory, message: string, statusCode?: number) {
-     super(message);
-     this.name = 'LlmError';
-     this.category = category;
-     this.statusCode = statusCode;
-   }
- }
- 
- export interface InterpretResult {
-   title_zh: string;
-   summary: string;
- }
- 
+﻿import { llmChat } from './llm-client.js';
+import type { Settings } from '@shared/types';
+
+// Re-export LlmError for backward compatibility (callers import from llm.ts)
+export { LlmError, type LlmErrorCategory } from './llm-client.js';
+
+export interface InterpretResult {
+  title_zh: string;
+  summary: string;
+}
+
 const SYSTEM_PROMPT = [
   'You are a senior Chinese tech editor for an AI tools radar.',
   'Given an item, produce a concise Chinese title (10-25 characters) and a',
@@ -44,58 +33,46 @@ const SYSTEM_PROMPT = [
   'Respond ONLY as JSON: {"title_zh": "...", "summary": "..."}',
 ].join('\n');
 
-const MAX_RETRIES = 2;
- const BACKOFF_BASE_MS = 1000;
- 
- /** Extract JSON object from a possibly-fenced or prose-wrapped LLM response. */
- function extractJson(raw: string): { title_zh?: string; summary?: string; description?: string } | null {
-   // Strip ALL markdown code fences (handles preamble, multiple blocks)
-   let text = raw.trim();
-   text = text.replace(/```(?:json)?\s*/gi, '');
+/** Extract JSON object from a possibly-fenced or prose-wrapped LLM response. */
+function extractJson(raw: string): { title_zh?: string; summary?: string; description?: string } | null {
+  let text = raw.trim();
+  text = text.replace(/```(?:json)?\s*/gi, '');
 
-   // Try direct parse first
-   try {
-     return JSON.parse(text);
-   } catch { /* continue to regex */ }
+  try {
+    return JSON.parse(text);
+  } catch { /* continue to regex */ }
 
-   // Extract outermost {...} block
-   const match = text.match(/\{[\s\S]*\}/);
-   if (!match) return null;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
 
-   // Try parsing as-is
-   try {
-     return JSON.parse(match[0]);
-   } catch { /* try fixes below */ }
+  try {
+    return JSON.parse(match[0]);
+  } catch { /* try fixes below */ }
 
-   // Fix: trailing commas before } or ]
-   let fixed = match[0].replace(/,\s*([}\]])/g, '$1');
-   try {
-     return JSON.parse(fixed);
-   } catch { /* last resort below */ }
+  let fixed = match[0].replace(/,\s*([}\]])/g, '$1');
+  try {
+    return JSON.parse(fixed);
+  } catch { /* last resort below */ }
 
-   // Last resort: extract fields via regex
-   const titleMatch = match[0].match(/"title_zh"\s*:\s*"([^"]*)"/);
-   const summaryMatch = match[0].match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/);
-   if (titleMatch || summaryMatch) {
-     return {
-       title_zh: titleMatch ? titleMatch[1] : undefined,
-       summary: summaryMatch ? summaryMatch[1] : undefined,
-     };
-   }
-   return null;
+  const titleMatch = match[0].match(/"title_zh"\s*:\s*"([^"]*)"/);
+  const summaryMatch = match[0].match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/);
+  if (titleMatch || summaryMatch) {
+    return {
+      title_zh: titleMatch ? titleMatch[1] : undefined,
+      summary: summaryMatch ? summaryMatch[1] : undefined,
+    };
+  }
+  return null;
 }
 
+/**
+ * Interpret an item: produce a Chinese title + detailed summary.
+ * Delegates the HTTP/retry/error logic to llmChat().
+ */
 export async function interpretItem(
   item: { title: string; summary: string | null; raw_data: string | null },
   settings: Settings,
 ): Promise<InterpretResult> {
-  const baseUrl = settings.llm_base_url.replace(/\/$/, '');
-  const endpoint = `${baseUrl}/chat/completions`;
-
-  if (!isLlmEndpoint(endpoint)) {
-    throw new LlmError('auth', `LLM endpoint must be HTTPS or localhost: ${new URL(endpoint).hostname}`);
-  }
-
   // Extract additional context from raw_data for richer summaries
   let extraContext: Record<string, unknown> = {};
   try {
@@ -116,111 +93,34 @@ export async function interpretItem(
 
   const userContent = JSON.stringify({
     title: item.title,
-   description: item.summary ?? '',
+    description: item.summary ?? '',
     ...extraContext,
   });
- 
- const body = JSON.stringify({
-     model: settings.llm_model,
-     messages: [
-       { role: 'system', content: SYSTEM_PROMPT },
-       { role: 'user', content: userContent },
-     ],
-     temperature: 0.3,
-   });
- 
-   const headers: Record<string, string> = {
-     'Content-Type': 'application/json',
-     'Authorization': `Bearer ${settings.llm_api_key}`,
-   };
- 
-   let lastError: LlmError | null = null;
- 
-   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-     const controller = new AbortController();
-     const timeoutId = setTimeout(() => controller.abort(), settings.llm_timeout_ms);
- 
-     try {
-       const resp = await fetch(endpoint, {
-         method: 'POST',
-         headers,
-         body,
-         signal: controller.signal,
-       });
- 
-       clearTimeout(timeoutId);
- 
-       if (resp.status === 401 || resp.status === 403) {
-         throw new LlmError('auth', `LLM auth failed (${resp.status})`, resp.status);
-       }
- 
-       if (resp.status === 429) {
-         lastError = new LlmError('rate_limit', 'LLM rate limited (429)', 429);
-         if (attempt < MAX_RETRIES) {
-           await new Promise((r) => setTimeout(r, BACKOFF_BASE_MS * Math.pow(2, attempt)));
-           continue;
-         }
-         throw lastError;
-       }
- 
-       if (resp.status >= 500) {
-         lastError = new LlmError('network', `LLM server error (${resp.status})`, resp.status);
-         if (attempt < MAX_RETRIES) {
-           await new Promise((r) => setTimeout(r, BACKOFF_BASE_MS * Math.pow(2, attempt)));
-           continue;
-         }
-         throw lastError;
-       }
- 
-       if (!resp.ok) {
-         throw new LlmError('unknown', `LLM request failed (${resp.status})`, resp.status);
-       }
- 
-       const data = await resp.json() as {
-         choices?: Array<{ message?: { content?: string } }>;
-       };
- 
-       const content = data.choices?.[0]?.message?.content ?? '';
-       const parsed = extractJson(content);
- 
-       if (parsed && parsed.title_zh) {
-         return {
-           title_zh: parsed.title_zh,
-           summary: parsed.summary ?? parsed.description ?? content.replace(/```/g, '').trim(),
-         };
-       }
- 
-       // JSON parse failed: fall back to original title, raw content as summary
-       return {
-         title_zh: item.title,
-         summary: content,
-       };
-     } catch (err) {
-       clearTimeout(timeoutId);
- 
-       if (err instanceof LlmError) {
-         // Auth errors are not retryable
-         if (err.category === 'auth') throw err;
-         // Rate limit / server errors: retry handled above via continue
-         if (err.category === 'rate_limit' || err.category === 'network') {
-           if (attempt < MAX_RETRIES) continue;
-           throw err;
-         }
-         throw err;
-       }
- 
-       // Abort/timeout
-       if (err instanceof Error && err.name === 'AbortError') {
-         lastError = new LlmError('timeout', 'LLM request timed out');
-         if (attempt < MAX_RETRIES) continue;
-         throw lastError;
-       }
- 
-       lastError = new LlmError('network', err instanceof Error ? err.message : String(err));
-       if (attempt < MAX_RETRIES) continue;
-       throw lastError;
-     }
-   }
- 
-   throw lastError ?? new LlmError('unknown', 'LLM request exhausted retries');
- }
+
+  const result = await llmChat(
+    {
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+      temperature: 0.3,
+    },
+    settings,
+  );
+
+  const content = result.content;
+  const parsed = extractJson(content);
+
+  if (parsed && parsed.title_zh) {
+    return {
+      title_zh: parsed.title_zh,
+      summary: parsed.summary ?? parsed.description ?? content.replace(/```/g, '').trim(),
+    };
+  }
+
+  // JSON parse failed: fall back to original title, raw content as summary
+  return {
+    title_zh: item.title,
+    summary: content,
+  };
+}
