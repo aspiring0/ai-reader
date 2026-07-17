@@ -81,16 +81,16 @@ export const api = {
  }>('/stats'),
   agent: {
     checkEnv: (itemId: string) =>
-      request<{ detected_type: string; prerequisites: Array<{ name: string; installed: boolean; version: string | null; install_url: string | null; install_hint: string | null }>; all_met: boolean; blocked_by: string[]; is_skill: boolean }>('/agent/check-env', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
+      request<{ detected_type: string; prerequisites: Array<{ name: string; installed: boolean; version: string | null; install_url: string | null; install_hint: string | null }>; all_met: boolean; blocked_by: string[]; is_skill: boolean; install_plan: { project_type: string; summary: string; prerequisites: string[]; steps: Array<{ command: string; description: string }>; run_command: string; notes: string[]; confidence: number } | null }>('/agent/check-env', { method: 'POST', body: JSON.stringify({ item_id: itemId }) }),
     defaultPath: () =>
       request<{ path: string; drives: string[] }>('/agent/default-path'),
     // Install returns a text/event-stream. We handle it with EventSource-like parsing.
     // This method returns a ReadableStream reader for SSE consumption.
-    install: async (itemId: string, installPath: string) => {
+    install: async (itemId: string, installPath: string, plan?: unknown) => {
       const res = await fetch('/api/agent/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: itemId, install_path: installPath }),
+        body: JSON.stringify({ item_id: itemId, install_path: installPath, plan }),
       });
      return res.body;
    },

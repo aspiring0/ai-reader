@@ -10,8 +10,24 @@ interface Prerequisite {
   install_hint: string | null;
 }
 
+interface InstallStep {
+  command: string;
+  description: string;
+}
+
+interface InstallPlan {
+  project_type: string;
+  summary: string;
+  prerequisites: string[];
+  steps: InstallStep[];
+  run_command: string;
+  notes: string[];
+  confidence: number;
+}
+
 interface EnvCheckResult {
   is_skill?: boolean;
+  install_plan?: InstallPlan | null;
   detected_type: string;
   prerequisites: Prerequisite[];
   all_met: boolean;
@@ -98,7 +114,7 @@ export function AgentInstallModal({ itemId, repoName, repoUrl, onClose }: AgentI
     setInstallDone(false);
     setInstallError(false);
     setLogLines([]);
-    const stream = await api.agent.install(itemId, installPath).catch(() => null);
+    const stream = await api.agent.install(itemId, installPath, envResult?.install_plan ?? undefined).catch(() => null);
     if (!stream) {
       setInstallError(true);
       setIsStreaming(false);
@@ -193,6 +209,50 @@ export function AgentInstallModal({ itemId, repoName, repoUrl, onClose }: AgentI
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono" style={{ background: 'rgba(122,162,247,.15)', color: '#7aa2f7' }}>
                       {envResult.detected_type || '--'}
                     </span>
+                  {/* AI Install Plan (from LLM analysis) */}
+                  {envResult.install_plan && envResult.install_plan.steps.length > 0 && (
+                    <div className="rounded-md border border-[#bb9af7]/30 bg-[#bb9af7]/5 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-mono text-[10px] text-[#bb9af7] uppercase tracking-wide">{'AI \u5b89\u88c5\u8ba1\u5212'}</span>
+                        {envResult.install_plan.confidence >= 0.7 ? (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#9ece6a]/20 text-[#9ece6a]">{'\u9ad8\u7f6e\u4fe1\u5ea6 ' + Math.round(envResult.install_plan.confidence * 100) + '%'}</span>
+                        ) : (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#e0af68]/20 text-[#e0af68]">{'\u7f6e\u4fe1\u5ea6 ' + Math.round(envResult.install_plan.confidence * 100) + '%'}</span>
+                        )}
+                      </div>
+                      {envResult.install_plan.summary && (
+                        <p className="text-[11px] text-fg-dim mb-2">{envResult.install_plan.summary}</p>
+                      )}
+                      {envResult.install_plan.prerequisites.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {envResult.install_plan.prerequisites.map((p, i) => (
+                            <span key={i} className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#7aa2f7]/15 text-[#7aa2f7]">{p}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1 mb-2">
+                        {envResult.install_plan.steps.map((s, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <span className="text-[10px] text-muted font-mono flex-shrink-0 mt-0.5">{(i + 1) + '.'}</span>
+                            <div className="min-w-0 flex-1">
+                              <pre className="text-[10px] font-mono text-green bg-black/40 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all">{s.command}</pre>
+                              {s.description && <p className="text-[10px] text-muted mt-0.5">{s.description}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {envResult.install_plan.notes.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-[#bb9af7]/20">
+                          {envResult.install_plan.notes.map((n, i) => (
+                            <p key={i} className="text-[10px] text-[#e0af68] flex gap-1">
+                              <span className="flex-shrink-0">{'\u26a0'}</span>
+                              <span>{n}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   </div>
 
                   {/* Prerequisites */}
@@ -277,7 +337,7 @@ export function AgentInstallModal({ itemId, repoName, repoUrl, onClose }: AgentI
                   <span className="text-fg font-mono">{envResult?.detected_type || '--'}</span>
                   <span className="text-muted">|</span>
                   <span className="text-muted font-mono">{'\u5c06\u8981\u6267\u884c'}</span>
-                  <span className="text-amber font-mono">{buildSummary(envResult?.detected_type || '')}</span>
+                  <span className="text-amber font-mono">{envResult?.install_plan && envResult.install_plan.steps.length > 0 ? envResult.install_plan.steps.length + ' steps' : buildSummary(envResult?.detected_type || '')}</span>
                 </div>
               </div>
             </>

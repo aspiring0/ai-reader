@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import { getItemById, insertInstalledAgent } from '../db/repository.js';
 import { listRepoFiles } from './installer.js';
 import { detectAgentType, type DetectionResult } from './agent-detector.js';
+import { analyzeInstallPlan, type InstallPlan } from './install-analyzer.js';
 import { checkPrerequisites, getAvailableDrives, getDefaultAgentsPath } from './env-checker.js';
 import type { Prerequisite } from './env-checker.js';
 import { getSettings } from '../lib/config.js';
@@ -40,6 +41,7 @@ export interface EnvCheckResponse {
   blocked_by: string[];
   detection: DetectionResult;
   is_skill: boolean;
+  install_plan: InstallPlan | null;
 }
 
 // ---- Env / path helpers ----
@@ -60,6 +62,9 @@ export async function checkItemEnv(itemId: string): Promise<EnvCheckResponse> {
   const env = checkPrerequisites(detection.type);
   const is_skill = files.some((f) => f.path.toLowerCase().endsWith('skill.md'));
 
+  // Generate LLM-powered install plan (falls back to detection if no LLM)
+  const install_plan = await analyzeInstallPlan(repoFullName, files.map((f) => f.path), token);
+
   return {
     detected_type: detection.type,
     prerequisites: env.prerequisites,
@@ -67,6 +72,7 @@ export async function checkItemEnv(itemId: string): Promise<EnvCheckResponse> {
     blocked_by: env.blockedBy,
     detection,
     is_skill,
+    install_plan,
   };
 }
 
@@ -181,11 +187,13 @@ export interface InstallOptions {
   itemId: string;
   installPath: string;
   emit: EmitFn;
+  plan?: InstallPlan | null;
 }
 export interface InstallOptions {
   itemId: string;
   installPath: string;
   emit: EmitFn;
+  plan?: InstallPlan | null;
 }
 
 
@@ -227,42 +235,53 @@ export async function runAgentInstall(opts: InstallOptions): Promise<void> {
   await runCommand('git clone --depth 1 ' + JSON.stringify(repoUrl) + ' ' + JSON.stringify(targetDir), installPath, emit, 'clone');
   emit({ phase: 'clone', message: 'Repository cloned' });
 
-  // 3. Build (type-specific)
+  // 3. Build (use AI plan steps if available, else type-based defaults)
   let runCmd = detection.runCommand ?? './' + agentName;
   let binaryPath: string | null = null;
   let dockerImage: string | null = null;
 
-  switch (detection.type) {
-    case 'docker': {
-      emit({ phase: 'build', message: 'Building Docker image: ' + agentName });
-      await runCommand('docker build -t ' + agentName + ' .', targetDir, emit, 'build');
-      dockerImage = agentName;
-      runCmd = 'docker run -it ' + agentName;
-      break;
+  if (opts.plan && opts.plan.steps.length > 0) {
+    // Use LLM-generated install plan steps
+    for (const step of opts.plan.steps) {
+      emit({ phase: 'build', message: step.description + ': ' + step.command });
+      await runCommand(step.command, targetDir, emit, 'build');
     }
-    case 'go': {
-      const buildCmd = detection.buildCommand ?? 'go build -o ' + agentName + ' .';
-      emit({ phase: 'build', message: 'Building: ' + buildCmd });
-      await runCommand(buildCmd, targetDir, emit, 'build');
-      binaryPath = path.join(targetDir, agentName);
-      break;
-    }
-    case 'npm': {
-      emit({ phase: 'build', message: 'Installing dependencies (npm install)...' });
-      await runCommand('npm install', targetDir, emit, 'build');
-      runCmd = 'npm start';
-      break;
-    }
-    case 'pip': {
-      emit({ phase: 'build', message: 'Installing Python package (pip install -e .)...' });
-      await runCommand('pip install -e .', targetDir, emit, 'build');
-      runCmd = 'python -m ' + agentName;
-      break;
-    }
-    default: {
-      // skill / manual: clone only, no build step
-      emit({ phase: 'build', message: 'No build step required' });
-      break;
+    if (opts.plan.run_command) runCmd = opts.plan.run_command;
+    if (detection.type === 'docker') dockerImage = agentName;
+    if (detection.type === 'go') binaryPath = path.join(targetDir, agentName);
+  } else {
+    // Fallback: type-based default commands
+    switch (detection.type) {
+      case 'docker': {
+        emit({ phase: 'build', message: 'Building Docker image: ' + agentName });
+        await runCommand('docker build -t ' + agentName + ' .', targetDir, emit, 'build');
+        dockerImage = agentName;
+        runCmd = 'docker run -it ' + agentName;
+        break;
+      }
+      case 'go': {
+        const buildCmd = detection.buildCommand ?? 'go build -o ' + agentName + ' .';
+        emit({ phase: 'build', message: 'Building: ' + buildCmd });
+        await runCommand(buildCmd, targetDir, emit, 'build');
+        binaryPath = path.join(targetDir, agentName);
+        break;
+      }
+      case 'npm': {
+        emit({ phase: 'build', message: 'Installing dependencies (npm install)...' });
+        await runCommand('npm install', targetDir, emit, 'build');
+        runCmd = 'npm start';
+        break;
+      }
+      case 'pip': {
+        emit({ phase: 'build', message: 'Installing Python package (pip install -e .)...' });
+        await runCommand('pip install -e .', targetDir, emit, 'build');
+        runCmd = 'python -m ' + agentName;
+        break;
+      }
+      default: {
+        emit({ phase: 'build', message: 'No build step required' });
+        break;
+      }
     }
   }
 
