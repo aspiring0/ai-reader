@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { cleanSummary } from '../lib/clean';
 
 /**
  * Parse an LLM-generated Chinese summary into structured blocks for display.
@@ -25,26 +26,6 @@ const LABEL_MAP: Record<string, string> = {
   '\u4f7f\u7528\u65b9\u6cd5': '\u5165\u95e8\u6307\u5357',
   '\u5b89\u88c5\u65b9\u6cd5': '\u5165\u95e8\u6307\u5357',
 };
-
-function cleanSummary(summary: string): string {
-  let s = summary.trim();
-  // Strip leading code fences: ```json or ```
-  s = s.replace(/```(?:json)?\s*/gi, '');
-  // If it looks like raw JSON, try to extract the summary field
-  if (s.startsWith('{')) {
-    try {
-      const obj = JSON.parse(s);
-      if (obj.summary) return obj.summary;
-      if (obj.title_zh) return obj.title_zh;
-    } catch { /* not valid JSON, continue */ }
-    // Regex fallback for malformed JSON
-    const sm = s.match(/"summary"\s*:\s*"([\s\S]*?)"\s*\}/);
-    if (sm) return sm[1];
-  }
-  // Strip trailing code fence remnants
-  s = s.replace(/\s*```\s*$/, '');
-  return s;
-}
 
 function parseSummary(summary: string): SummaryBlock[] {
   summary = cleanSummary(summary);

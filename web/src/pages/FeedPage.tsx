@@ -5,6 +5,7 @@ import type { FeedParams } from '../api/client';
 import type { Item } from '@shared/types';
 import { ItemModal } from '../components/ItemModal';
 import { getGithubMeta } from '../lib/rawData';
+import { cleanSummary } from '../lib/clean';
 
 const PAGE_SIZE = 12;
 
@@ -78,11 +79,11 @@ function Card({ item, onClick, selected }: { item: Item; onClick: () => void; se
 
       <div className="text-[13px] font-medium text-fg leading-snug line-clamp-2 mb-1.5">{title}</div>
 
-      <div className="mb-2">
-        {item.summary && (
-          <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2">{item.summary}</div>
-        )}
-        {isGithub && ghDescription && ghDescription !== item.summary && (
+     <div className="mb-2">
+       {item.summary && (
+                <div className="text-[11px] text-fg-dim leading-relaxed line-clamp-2">{cleanSummary(item.summary)}</div>
+      )}
+       {isGithub && ghDescription && ghDescription !== item.summary && (
           <div className="text-[10px] text-muted leading-relaxed line-clamp-1 mt-0.5 italic">{ghDescription}</div>
         )}
       </div>

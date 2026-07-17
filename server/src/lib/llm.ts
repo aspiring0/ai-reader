@@ -27,7 +27,7 @@ const SYSTEM_PROMPT = [
   '',
   'The summary MUST follow this EXACT structure with numbered sections:',
   '',
-  '<1-2 sentence overview of what the tool is>',
+  'First, write 1-2 sentences describing what the tool is.',
   '1. \u6838\u5fc3\u529f\u80fd\uff1a<what it does, problem solved, how it works technically>',
   '2. \u4f7f\u7528\u573a\u666f\uff1a<specific user roles (e.g. \u540e\u7aef\u5de5\u7a0b\u5e08, \u6570\u636e\u79d1\u5b66\u5bb6) and concrete situations>',
   '3. \u5165\u95e8\u6307\u5357\uff1a<installation commands, key configs, first-run steps>',
@@ -48,7 +48,7 @@ const MAX_RETRIES = 2;
  const BACKOFF_BASE_MS = 1000;
  
  /** Extract JSON object from a possibly-fenced or prose-wrapped LLM response. */
- function extractJson(raw: string): { title_zh?: string; summary?: string } | null {
+ function extractJson(raw: string): { title_zh?: string; summary?: string; description?: string } | null {
    // Strip ALL markdown code fences (handles preamble, multiple blocks)
    let text = raw.trim();
    text = text.replace(/```(?:json)?\s*/gi, '');
@@ -186,7 +186,7 @@ export async function interpretItem(
        if (parsed && parsed.title_zh) {
          return {
            title_zh: parsed.title_zh,
-           summary: parsed.summary ?? content,
+           summary: parsed.summary ?? parsed.description ?? content.replace(/```/g, '').trim(),
          };
        }
  
