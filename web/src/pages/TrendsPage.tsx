@@ -180,7 +180,7 @@ function TopTopics({ data }: { data: Topic[] }) {
 }
 
 export function TrendsPage() {
-  const { data, isLoading } = useQuery({ queryKey: ['stats'], queryFn: api.stats });
+const { data, isLoading } = useQuery({ queryKey: ['stats'], queryFn: api.stats, refetchInterval: 120_000 });
   const daily = data?.daily_scores ?? [];
   const sources = data?.source_distribution ?? [];
   const scores = data?.score_distribution ?? [];

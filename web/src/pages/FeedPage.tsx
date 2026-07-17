@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { FeedParams } from '../api/client';
@@ -176,6 +176,16 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
   const [selectedCardIndex, setSelectedCardIndex] = useState(-1);
   const qc = useQueryClient();
+  const [newDataHint, setNewDataHint] = useState(false);
+  const lastCollectRef = useRef<string | null>(null);
+
+  // Detect new data via the shared health poll (already running in App.tsx every 30s)
+  const health = qc.getQueryData<{ last_collect: string | null }>(['health']);
+  const currentCollect = health?.last_collect ?? null;
+  if (currentCollect && currentCollect !== lastCollectRef.current) {
+    if (lastCollectRef.current !== null) setNewDataHint(true);
+    lastCollectRef.current = currentCollect;
+  }
 
   const since = useMemo(() => {
     if (timeWindow === 'all') return undefined;
@@ -283,9 +293,25 @@ export function FeedPage({ mode }: { mode: 'skill' | 'news' | 'fav' }) {
 
   const showTrending = tab === 'skill' && page === 1 && !search && sourceFilter === 'all' && typeFilter === 'all';
 
-  return (
-    <div>
-      {/* Trending strip */}
+ return (
+   <div>
+     {/* New data hint banner */}
+     {newDataHint && (
+       <div className="px-3.5 pt-3">
+         <button
+           className="w-full rounded-md border border-amber/40 bg-amber/10 px-3 py-2 text-[11px] text-amber hover:bg-amber/20 transition-colors text-center"
+           onClick={() => {
+             setNewDataHint(false);
+             qc.invalidateQueries({ queryKey: ['feed'] });
+             qc.invalidateQueries({ queryKey: ['trending'] });
+           }}
+         >
+           {'\u2191 \u68C0\u6D4B\u5230\u65B0\u6570\u636E\uFF0C\u70B9\u51FB\u5237\u65B0'}
+         </button>
+       </div>
+     )}
+
+     {/* Trending strip */}
       {showTrending && trendingItems.length > 0 && (
         <div className="px-3.5 pt-3.5">
           <div className="rounded-lg border border-border bg-surface2/50 p-3">
