@@ -14,6 +14,7 @@ import { adminRoutes } from './routes/admin.js';
 import { interpretRoutes } from './routes/interpret.js';
 import { installRoutes } from './routes/install.js';
 import { llmRoutes } from './routes/llm.js';
+import { statsRoutes } from './routes/stats.js';
 import { logger } from './lib/logger.js';
 import { runInterpretation } from './interpreter/index.js';
 import { getSettings } from './lib/config.js';
@@ -60,6 +61,7 @@ async function bootstrap(): Promise<void> {
   await app.register(interpretRoutes);
   await app.register(installRoutes);
   await app.register(llmRoutes);
+  await app.register(statsRoutes);
 
   const collectors = [
     new GitHubCollector(),

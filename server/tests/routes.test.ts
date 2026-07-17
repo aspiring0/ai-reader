@@ -9,6 +9,7 @@ import { feedRoutes } from '../src/routes/feed.js';
 import { settingsRoutes } from '../src/routes/settings.js';
 import { healthRoutes } from '../src/routes/health.js';
 import { logsRoutes } from '../src/routes/logs.js';
+import { statsRoutes } from '../src/routes/stats.js';
 import { logger } from '../src/lib/logger.js';
 import type { Item } from '@shared/types';
 
@@ -35,6 +36,7 @@ async function buildApp() {
   await app.register(settingsRoutes);
   await app.register(healthRoutes);
   await app.register(logsRoutes);
+  await app.register(statsRoutes);
   return app;
 }
 
@@ -225,6 +227,43 @@ describe('API Routes', () => {
       const body = resp.json();
       expect(body.data).toHaveLength(1);
       expect(body.data[0].level).toBe('error');
-    });
+   });
+ });
+});
+
+describe('Stats Routes', () => {
+  let app: Awaited<ReturnType<typeof buildApp>>;
+
+  beforeEach(async () => {
+    process.env.AIRADAR_DB_PATH = ':memory:';
+    const db = openDb();
+    initSchema(db);
+    runMigrations(db);
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+    closeDb();
+  });
+
+  it('should return all stats fields', async () => {
+    const resp = await app.inject({ method: 'GET', url: '/api/stats' });
+    expect(resp.statusCode).toBe(200);
+    const body = resp.json();
+    expect(body.ok).toBe(true);
+    expect(body.data).toHaveProperty('daily_scores');
+    expect(body.data).toHaveProperty('source_distribution');
+    expect(body.data).toHaveProperty('score_distribution');
+    expect(body.data).toHaveProperty('top_topics');
+    expect(body.data).toHaveProperty('top_languages');
+  });
+
+  it('should return exactly 5 score-distribution buckets', async () => {
+    const resp = await app.inject({ method: 'GET', url: '/api/stats' });
+    const body = resp.json();
+    expect(body.data.score_distribution).toHaveLength(5);
+    expect(body.data.score_distribution.map((b: { bucket: string }) => b.bucket))
+      .toEqual(['0-19', '20-39', '40-59', '60-79', '80-100']);
   });
 });

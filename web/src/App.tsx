@@ -5,13 +5,15 @@ import { FeedPage } from './pages/FeedPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SystemPage } from './pages/SystemPage';
 import { AdminPage } from './pages/AdminPage';
+import { TrendsPage } from './pages/TrendsPage';
 
-type Page = 'skill' | 'news' | 'fav' | 'settings' | 'system' | 'admin';
+type Page = 'skill' | 'news' | 'fav' | 'trends' | 'settings' | 'system' | 'admin';
 
 const NAV: { key: Page; label: string }[] = [
   { key: 'skill', label: '\u6280\u80FD & \u9879\u76EE' },
   { key: 'news', label: 'AI \u70ED\u70B9' },
   { key: 'fav', label: '\u6536\u85CF' },
+  { key: 'trends', label: '\u8D8B\u52BF' },
   { key: 'settings', label: '\u8BBE\u7F6E' },
   { key: 'system', label: '\u7CFB\u7EDF' },
   { key: 'admin', label: '\u7BA1\u7406' },
@@ -47,6 +49,7 @@ export default function App() {
         {page === 'skill' && <FeedPage mode="skill" />}
         {page === 'news' && <FeedPage mode="news" />}
         {page === 'fav' && <FeedPage mode="fav" />}
+        {page === 'trends' && <TrendsPage />}
         {page === 'settings' && <SettingsPage />}
         {page === 'system' && <SystemPage />}
         {page === 'admin' && <AdminPage />}

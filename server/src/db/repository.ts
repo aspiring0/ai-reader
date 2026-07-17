@@ -297,6 +297,107 @@ export function updateItemScore(
   ).run(score, JSON.stringify(scoreDetail), status, now, id);
 }
 
+// ---------------------------------------------------------------- Stats
+
+/** Daily high-score item counts for the last N days. Returns [{date, count}] sorted ascending. */
+export function getDailyScoreCounts(days = 30): { date: string; count: number }[] {
+  const db = openDb();
+  const rows = db.prepare(`
+    SELECT DATE(created_at) as date, COUNT(*) as count
+    FROM items
+    WHERE status != 'hidden'
+      AND created_at >= DATE('now', '-' || ? || ' days')
+    GROUP BY DATE(created_at)
+    ORDER BY date ASC
+  `).all(days) as { date: string; count: number }[];
+  return rows;
+}
+
+/** Source distribution counts. Returns { github, hackernews, rss }. */
+export function getSourceDistribution(): { source: string; count: number }[] {
+  const db = openDb();
+  const rows = db.prepare(`
+    SELECT source_type as source, COUNT(*) as count
+    FROM items WHERE status != 'hidden'
+    GROUP BY source_type ORDER BY count DESC
+  `).all() as { source: string; count: number }[];
+  return rows;
+}
+
+/** Score distribution histogram in buckets of 20. Returns [{ bucket: "0-19", count: N }, ...]. */
+export function getScoreDistribution(): { bucket: string; count: number }[] {
+  const db = openDb();
+  const rows = db.prepare(`
+    SELECT
+      CAST(score / 20 AS INTEGER) * 20 as bucket_start,
+      COUNT(*) as count
+    FROM items
+    WHERE status != 'hidden' AND score > 0
+    GROUP BY bucket_start
+    ORDER BY bucket_start ASC
+  `).all() as { bucket_start: number; count: number }[];
+  // Convert to labeled buckets
+  const labels = ['0-19', '20-39', '40-59', '60-79', '80-100'];
+  const map = new Map(rows.map(r => [r.bucket_start, r.count]));
+  return labels.map((label, i) => {
+    const start = i * 20;
+    return { bucket: label, count: map.get(start) ?? 0 };
+  });
+}
+
+/** Top topics from GitHub raw_data JSON. Returns [{topic, count}] sorted by count DESC. */
+export function getTopTopics(limit = 20): { topic: string; count: number }[] {
+  const db = openDb();
+  // Get all GitHub items' raw_data (topics are in JSON)
+  const rows = db.prepare(`
+    SELECT raw_data FROM items
+    WHERE source_type = 'github' AND status != 'hidden' AND raw_data IS NOT NULL
+  `).all() as { raw_data: string }[];
+
+  const topicCounts = new Map<string, number>();
+  for (const row of rows) {
+    try {
+      const data = JSON.parse(row.raw_data) as Record<string, unknown>;
+      if (Array.isArray(data.topics)) {
+        for (const t of data.topics) {
+          if (typeof t === 'string' && t.length > 0) {
+            topicCounts.set(t, (topicCounts.get(t) ?? 0) + 1);
+          }
+        }
+      }
+    } catch { /* skip invalid JSON */ }
+  }
+
+  return [...topicCounts.entries()]
+    .map(([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+/** Top languages from GitHub raw_data. Returns [{lang, count}] sorted by count DESC. */
+export function getTopLanguages(limit = 10): { lang: string; count: number }[] {
+  const db = openDb();
+  const rows = db.prepare(`
+    SELECT raw_data FROM items
+    WHERE source_type = 'github' AND status != 'hidden' AND raw_data IS NOT NULL
+  `).all() as { raw_data: string }[];
+
+  const langCounts = new Map<string, number>();
+  for (const row of rows) {
+    try {
+      const data = JSON.parse(row.raw_data) as Record<string, unknown>;
+      if (typeof data.language === 'string' && data.language.length > 0) {
+        langCounts.set(data.language, (langCounts.get(data.language) ?? 0) + 1);
+      }
+    } catch { /* skip */ }
+  }
+
+  return [...langCounts.entries()]
+    .map(([lang, count]) => ({ lang, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
 // ── Settings ───────────────────────────────────────────
 
 export function getSetting(key: string): string {
