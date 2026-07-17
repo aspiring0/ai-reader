@@ -35,6 +35,7 @@ export async function agentInstallRoutes(app: FastifyInstance): Promise<void> {
           all_met: env.all_met,
           blocked_by: env.blocked_by,
           is_skill: env.is_skill,
+          install_plan: env.install_plan,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -50,7 +51,7 @@ export async function agentInstallRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** Run install as SSE stream. */
-  app.post<{ Body: { item_id?: string; install_path?: string } }>(
+  app.post<{ Body: { item_id?: string; install_path?: string; plan?: unknown } }>(
     '/api/agent/install',
     async (req, reply) => {
       const itemId = req.body?.item_id;
@@ -77,7 +78,7 @@ export async function agentInstallRoutes(app: FastifyInstance): Promise<void> {
       };
 
       try {
-        await runAgentInstall({ itemId, installPath, emit: send });
+        await runAgentInstall({ itemId, installPath, emit: send, plan: req.body?.plan as import('../install/install-analyzer.js').InstallPlan | undefined });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         send({ phase: 'error', message: msg });
