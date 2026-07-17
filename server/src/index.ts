@@ -13,6 +13,7 @@ import { logsRoutes } from './routes/logs.js';
 import { adminRoutes } from './routes/admin.js';
 import { interpretRoutes } from './routes/interpret.js';
 import { installRoutes } from './routes/install.js';
+import { agentInstallRoutes } from './routes/agent-install.js';
 import { llmRoutes } from './routes/llm.js';
 import { statsRoutes } from './routes/stats.js';
 import { logger } from './lib/logger.js';
@@ -60,6 +61,7 @@ async function bootstrap(): Promise<void> {
   await app.register(adminRoutes);
   await app.register(interpretRoutes);
   await app.register(installRoutes);
+  await app.register(agentInstallRoutes);
   await app.register(llmRoutes);
   await app.register(statsRoutes);
 
