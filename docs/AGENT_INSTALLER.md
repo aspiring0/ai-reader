@@ -58,7 +58,13 @@ Default base path per OS (NOT C:):
 - macOS/Linux: `~/.local/share/ai-radar/agents/`
 
 Each agent gets its own subdirectory: `agents/<repo-name>/`.
-User can override the base path in Settings.
+
+User can override the base path in Settings AND per-install (the wizard
+step 2 has a path input box). The wizard detects available drives:
+- Windows: checks C:, D:, E: etc. If D: exists, default to D:\ai-radar\agents\
+- macOS/Linux: defaults to ~/.local/share/ai-radar/agents/
+
+The chosen path is remembered as the new default for next install.
 
 ### 4. Real-time Installation via SSE
 
@@ -70,12 +76,36 @@ POST /api/agent/install
     { phase: "clone", message: "Repository cloned (12.3 MB)" }
     { phase: "build", message: "Running: go build -o reasonix ./cmd/reasonix" }
     { phase: "build", message: "stdout: compiled successfully" }
+    { phase: "diagnose", message: "AI: error detected, missing CGO. Fix: set CGO_ENABLED=0" }
     { phase: "done", message: "Installed to .../agents/DeepSeek-Reasonix" }
     { phase: "error", message: "go: command not found" }
 ```
 
 Backend spawns the install as child process, pipes stdout/stderr to SSE.
 Frontend renders a terminal-like output panel with live scrolling.
+
+### 4b. AI-Assisted Error Diagnosis
+
+When an install command exits with non-zero code, the system does NOT just
+show an error and stop. Instead:
+
+1. Backend captures full stdout + stderr
+2. Sends to the configured LLM with a diagnostic prompt:
+   "This command failed: {command}. Output: {stderr}. Suggest a fix."
+3. LLM returns: probable cause + specific fix command/config change
+4. SSE emits a "diagnose" phase event with the suggestion
+5. UI shows both raw error log AND AI suggestion side by side
+6. User can click "Apply fix & retry" to re-run with the suggested adjustment
+
+Common scenarios the AI handles:
+- Missing env vars (CGO_ENABLED=0, GOPATH not set)
+- Docker daemon not running
+- npm permission errors (suggest --prefix or nvm)
+- Python version mismatch
+- Build flags needed for the user's OS
+
+This turns every install failure into a guided troubleshooting session
+instead of a dead end.
 
 ### 5. Install Steps by Type
 
